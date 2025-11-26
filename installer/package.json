@@ -1,0 +1,24 @@
+{
+  "name": "taut-installer",
+  "version": "1.0.0",
+  "description": "Installer for Taut - a Slack mod",
+  "type": "module",
+  "bin": {
+    "taut-installer": "./cli.js"
+  },
+  "files": [
+    "cli.js",
+    "loader.js"
+  ],
+  "keywords": [
+    "slack",
+    "mod",
+    "patcher"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@electron/asar": "^4.0.1",
+    "@electron/fuses": "^2.0.0",
+    "electron": "^39.2.3"
+  }
+}
