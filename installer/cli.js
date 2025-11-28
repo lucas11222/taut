@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path'
+import readline from 'node:readline/promises'
 import {
   findSlackInstall,
   getSlackPaths,
@@ -12,8 +13,8 @@ import {
 } from 'patch'
 
 /**
- * Main entry point for the Taut CLI installer.
- * Handles install, uninstall, and status commands for patching Slack.
+ * Main entry point for the Taut CLI installer
+ * Handles install, uninstall, and status commands for patching Slack
  * @returns {Promise<void>}
  */
 async function main() {
@@ -49,14 +50,14 @@ async function main() {
   const appAsar = path.join(resourcesDir, 'app.asar')
   const appAsarInfo = await getAsarInfo(appAsar)
 
-  if (appAsarInfo && appAsarInfo.name === 'taut') {
+  if (appAsarInfo && appAsarInfo.name === 'taut-shim') {
     const isUpToDate = appAsarInfo.patchVersion === PATCH_VERSION
     const statusText = isUpToDate
       ? 'up to date'
       : `outdated, latest is v${PATCH_VERSION}`
     console.log(
       `   Installed: Taut patch v${
-        appAsarInfo.patchVersion || '?'
+        appAsarInfo.patchVersion ?? '?'
       } (${statusText})`
     )
   } else {
@@ -64,20 +65,38 @@ async function main() {
   }
   console.log()
 
-  if (!action || action === 'install') {
+  if (action === 'install') {
     await install(resourcesDir)
+  } else if (!action) {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+    try {
+      const answer = await rl.question(
+        `Install Taut to ${resourcesDir}? [Y/n] `
+      )
+      if (answer === '' || /^\s*(y|yes)$/i.test(answer)) {
+        console.log()
+        await install(resourcesDir)
+      } else {
+        console.log('Aborted.')
+      }
+    } finally {
+      rl.close()
+    }
   } else if (action === 'uninstall') {
     await uninstall(resourcesDir)
   } else if (action === 'status') {
     // Check asar files and their versions
 
     // app.asar line
-    if (appAsarInfo && appAsarInfo.name === 'taut') {
+    if (appAsarInfo && appAsarInfo.name === 'taut-shim') {
       const isUpToDate = appAsarInfo.patchVersion === PATCH_VERSION
       const statusText = isUpToDate ? 'up to date' : 'outdated'
       console.log(
         `app.asar: ✅ Taut patch v${
-          appAsarInfo.patchVersion || '?'
+          appAsarInfo.patchVersion ?? '?'
         } (${statusText})`
       )
     } else if (appAsarInfo && appAsarInfo.name === 'slack-desktop') {
@@ -90,15 +109,15 @@ async function main() {
     const backupAsarInfo = await getAsarInfo(backupAsar)
 
     // _app.asar line
-    if (backupAsarInfo && backupAsarInfo.name === 'taut') {
+    if (backupAsarInfo && backupAsarInfo.name === 'taut-shim') {
       console.log(
         `_app.asar: ⚠️  Taut patch v${
-          backupAsarInfo.patchVersion || '?'
+          backupAsarInfo.patchVersion ?? '?'
         } (broken, should be Slack!)`
       )
     } else if (backupAsarInfo && backupAsarInfo.name === 'slack-desktop') {
       console.log(`_app.asar: ✅ Slack v${backupAsarInfo.version}`)
-    } else if (appAsarInfo && appAsarInfo.name === 'taut') {
+    } else if (appAsarInfo && appAsarInfo.name === 'taut-shim') {
       console.log(`_app.asar: ❌ Missing (broken state!)`)
     } else {
       console.log(`_app.asar: ➖ Not present (not patched)`)
@@ -107,25 +126,14 @@ async function main() {
     console.log('')
 
     const fuses = await getBinaryFuses(getElectronBinary(resourcesDir))
-    let fuseInfo = ''
-    if (fuses) {
-      const enabledFuses = Object.entries(fuses)
-        .filter(
-          ([fuse, enabled]) =>
-            enabled && fuse !== 'EnableEmbeddedAsarIntegrityValidation'
-        )
-        .map(([fuse]) => fuse)
-      if (enabledFuses.length > 0) {
-        fuseInfo = `, ${enabledFuses.join(', ')}`
-      }
-    }
+    const enabledFuses = Object.entries(fuses ?? {})
+      .filter(([fuse, enabled]) => enabled)
+      .map(([fuse, enabled]) => fuse)
 
-    const integrityDisabled =
-      fuses && fuses.EnableEmbeddedAsarIntegrityValidation === false
     console.log(
-      `Electron fuses: integrity validation ${
-        integrityDisabled ? 'disabled' : 'enabled'
-      }${fuseInfo}`
+      `Electron fuses: ${
+        enabledFuses.length > 0 ? enabledFuses.join(', ') : 'none'
+      }`
     )
   } else {
     console.log('Usage: npx taut-installer [command] [path]')

@@ -1,8 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 
-const { join } = path
-
+// This function is duplicated in shim.cjs, keep in sync
 function osConfigDir() {
   switch (process.platform) {
     case 'win32':
@@ -10,7 +9,7 @@ function osConfigDir() {
 
     case 'darwin': {
       const home = os.homedir() || '~'
-      return join(home, 'Library', 'Preferences')
+      return path.join(home, 'Library', 'Preferences')
     }
 
     case 'linux':
@@ -19,9 +18,8 @@ function osConfigDir() {
       if (xdgConfigDir) return xdgConfigDir
 
       const home = os.homedir() || '~'
-      return join(home, '.config')
+      return path.join(home, '.config')
     }
   }
 }
-
-export const configDir = join(osConfigDir(), 'taut')
+export const configDir = path.join(osConfigDir(), 'taut')

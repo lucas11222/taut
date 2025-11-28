@@ -18,15 +18,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
  * Current patch version. Increment this when the shim/loader logic changes
- * in a way that requires re-patching the Slack binary.
+ * in a way that requires re-patching the Slack binary
  * @type {number}
  */
-export const PATCH_VERSION = 0
+export const PATCH_VERSION = 1
 
 /**
- * Extracts version information from an asar archive's package.json.
- * @param {string} asarPath - The path to the asar file.
- * @returns {Promise<{name: string, version: string, patchVersion?: number} | null>} The name, version, and optional patchVersion, or null if not found.
+ * Extracts version information from an asar archive's package.json
+ * @param {string} asarPath - The path to the asar file
+ * @returns {Promise<{name: string, version: string, patchVersion?: number} | null>} The name, version, and optional patchVersion, or null if not found
  */
 export async function getAsarInfo(asarPath) {
   if (!existsSync(asarPath)) return null
@@ -52,9 +52,9 @@ export async function getAsarInfo(asarPath) {
  */
 
 /**
- * Retrieves the Electron fuse configuration from a binary.
- * @param {string} binaryPath - The path to the Electron binary.
- * @returns {Promise<Fuses | null>} The fuse configuration, or null if not found.
+ * Retrieves the Electron fuse configuration from a binary
+ * @param {string} binaryPath - The path to the Electron binary
+ * @returns {Promise<Fuses | null>} The fuse configuration, or null if not found
  */
 export async function getBinaryFuses(binaryPath) {
   if (!existsSync(binaryPath)) return null
@@ -82,8 +82,8 @@ export async function getBinaryFuses(binaryPath) {
 }
 
 /**
- * Gets possible Slack installation paths on Windows.
- * @returns {string[]} Array of potential resource directory paths.
+ * Gets possible Slack installation paths on Windows
+ * @returns {string[]} Array of potential resource directory paths
  */
 function getWindowsSlackPaths() {
   const localAppData = process.env.LOCALAPPDATA
@@ -105,8 +105,8 @@ function getWindowsSlackPaths() {
 }
 
 /**
- * Gets all possible Slack installation paths for the current platform.
- * @returns {string[]} Array of potential resource directory paths.
+ * Gets all possible Slack installation paths for the current platform
+ * @returns {string[]} Array of potential resource directory paths
  */
 export function getSlackPaths() {
   if (process.platform === 'darwin') {
@@ -138,8 +138,8 @@ export function getSlackPaths() {
 }
 
 /**
- * Finds the first valid Slack installation path.
- * @returns {Promise<string | null>} The resources directory path, or null if not found.
+ * Finds the first valid Slack installation path
+ * @returns {Promise<string | null>} The resources directory path, or null if not found
  */
 export async function findSlackInstall() {
   const paths = getSlackPaths()
@@ -154,9 +154,9 @@ export async function findSlackInstall() {
 }
 
 /**
- * Checks if the current process has write access to a directory.
- * @param {string} dir - The directory path to check.
- * @returns {Promise<boolean>} True if write access is available.
+ * Checks if the current process has write access to a directory
+ * @param {string} dir - The directory path to check
+ * @returns {Promise<boolean>} True if write access is available
  */
 async function checkWriteAccess(dir) {
   try {
@@ -168,8 +168,8 @@ async function checkWriteAccess(dir) {
 }
 
 /**
- * Checks if Slack is currently running.
- * @returns {boolean} True if Slack is running.
+ * Checks if Slack is currently running
+ * @returns {boolean} True if Slack is running
  */
 export function isSlackRunning() {
   try {
@@ -199,8 +199,8 @@ export function isSlackRunning() {
 }
 
 /**
- * Attempts to kill the Slack process.
- * @returns {Promise<boolean>} True if Slack was successfully killed or wasn't running.
+ * Attempts to kill the Slack process
+ * @returns {Promise<boolean>} True if Slack was successfully killed or wasn't running
  */
 export async function killSlack() {
   try {
@@ -220,9 +220,9 @@ export async function killSlack() {
 }
 
 /**
- * Checks if Slack has been patched by Taut.
- * @param {string} resourcesDir - The Slack resources directory path.
- * @returns {Promise<boolean>} True if the backup asar exists (indicating patched state).
+ * Checks if Slack has been patched by Taut
+ * @param {string} resourcesDir - The Slack resources directory path
+ * @returns {Promise<boolean>} True if the backup asar exists (indicating patched state)
  */
 export async function isPatched(resourcesDir) {
   const backup = path.join(resourcesDir, '_app.asar')
@@ -230,10 +230,10 @@ export async function isPatched(resourcesDir) {
 }
 
 /**
- * Checks if the Slack installation is in a broken state.
- * A broken state occurs when the backup exists but the main asar is missing.
- * @param {string} resourcesDir - The Slack resources directory path.
- * @returns {Promise<boolean>} True if the installation is broken.
+ * Checks if the Slack installation is in a broken state
+ * A broken state occurs when the backup exists but the main asar is missing
+ * @param {string} resourcesDir - The Slack resources directory path
+ * @returns {Promise<boolean>} True if the installation is broken
  */
 export async function isBroken(resourcesDir) {
   const appAsar = path.join(resourcesDir, 'app.asar')
@@ -243,13 +243,13 @@ export async function isBroken(resourcesDir) {
 }
 
 /**
- * Creates backups of the original Slack files before patching.
+ * Creates backups of the original Slack files before patching
  * Backs up app.asar and app.asar.unpacked
- * @param {string} resourcesDir - The Slack resources directory path.
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
- * @throws {Error} If backup fails (will attempt rollback).
+ * @throws {Error} If backup fails (will attempt rollback)
  */
-export async function backup(resourcesDir) {
+async function backup(resourcesDir) {
   const appAsar = path.join(resourcesDir, 'app.asar')
   const backupAsar = path.join(resourcesDir, '_app.asar')
   const unpacked = path.join(resourcesDir, 'app.asar.unpacked')
@@ -280,9 +280,9 @@ export async function backup(resourcesDir) {
 }
 
 /**
- * Gets the path to the Slack/Electron binary for the current platform.
- * @param {string} resourcesDir - The Slack resources directory path.
- * @returns {string} The path to the Slack executable.
+ * Gets the path to the Slack/Electron binary for the current platform
+ * @param {string} resourcesDir - The Slack resources directory path
+ * @returns {string} The path to the Slack executable
  */
 export function getElectronBinary(resourcesDir) {
   if (process.platform === 'darwin') {
@@ -298,12 +298,12 @@ export function getElectronBinary(resourcesDir) {
 }
 
 /**
- * Disables the Electron ASAR integrity check fuse in the Slack binary.
- * This is necessary to allow loading modified asar files.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Disables the Electron ASAR integrity check fuse in the Slack binary
+ * This is necessary to allow loading modified asar files
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
-export async function disableIntegrityCheck(resourcesDir) {
+async function disableIntegrityCheck(resourcesDir) {
   const executablePath = getElectronBinary(resourcesDir)
 
   if (!existsSync(executablePath)) {
@@ -314,7 +314,7 @@ export async function disableIntegrityCheck(resourcesDir) {
 
   const fuses = await getBinaryFuses(executablePath)
   if (fuses && fuses.EnableEmbeddedAsarIntegrityValidation === false) {
-    console.log('ℹ️   ASAR integrity check already disabled.')
+    console.log('ℹ️  ASAR integrity check already disabled.')
     return
   }
 
@@ -330,35 +330,30 @@ export async function disableIntegrityCheck(resourcesDir) {
 }
 
 /**
- * Builds the Taut shim asar that loads our code before the original Slack app.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Builds the Taut shim asar that loads our code before the original Slack app
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
-export async function buildShim(resourcesDir) {
+async function buildShim(resourcesDir) {
   const appAsar = path.join(resourcesDir, 'app.asar')
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'taut-shim-'))
 
   try {
-    // Read the loader from our package
-    const loaderSrc = path.join(__dirname, 'loader.js')
-    const loaderContent = await fs.readFile(loaderSrc, 'utf8')
-
     // Write shim files
-    await fs.writeFile(path.join(tmpDir, 'loader.js'), loaderContent)
-
     await fs.writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({
-        name: 'taut',
+        name: 'taut-shim',
+        productName: 'Slack',
         main: 'index.js',
         version: `${PATCH_VERSION}.0.0`,
         patchVersion: PATCH_VERSION,
       })
     )
-
-    // The bootstrapper - loads our code then the original app
-    const indexContent = `require('./loader.js')`
-    await fs.writeFile(path.join(tmpDir, 'index.js'), indexContent)
+    await fs.copyFile(
+      path.join(__dirname, 'shim.cjs'),
+      path.join(tmpDir, 'index.js')
+    )
 
     // Pack the shim
     console.log('📦 Packing shim asar...')
@@ -370,11 +365,11 @@ export async function buildShim(resourcesDir) {
 }
 
 /**
- * Resigns the Slack app binary on macOS after patching.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Resigns the Slack app binary on macOS after patching
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
-export async function resign(resourcesDir) {
+async function resign(resourcesDir) {
   if (process.platform !== 'darwin') {
     return
   }
@@ -421,25 +416,22 @@ export async function copyJsToConfigDir() {
   console.log('📋 Copying JS files to config directory...')
 
   const sourceDir = path.join(__dirname, 'js')
+  const depsDir = path.join(__dirname, 'deps')
   const destDir = path.join(configDir, 'js')
 
   try {
     await fs.rm(destDir, { recursive: true, force: true })
   } catch {}
   await fs.mkdir(destDir, { recursive: true })
-  const files = await fs.readdir(sourceDir)
-  for (const file of files) {
-    const srcFile = path.join(sourceDir, file)
-    const destFile = path.join(destDir, file)
-    await fs.copyFile(srcFile, destFile)
-  }
+  await fs.cp(sourceDir, destDir, { recursive: true })
+  await fs.cp(depsDir, path.join(destDir, 'deps'), { recursive: true })
 }
 
 /**
- * Applies the Taut patch to Slack (internal).
+ * Applies the Taut patch to Slack (internal)
  * This will backup original files, build a shim, disable integrity checks,
- * and re-sign the app (on macOS). Does NOT copy JS files.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * and re-sign the app (on macOS). Does NOT copy JS files
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
 async function applyPatch(resourcesDir) {
@@ -460,9 +452,9 @@ async function applyPatch(resourcesDir) {
 }
 
 /**
- * Checks common preconditions for install/uninstall operations.
- * Kills Slack if running, checks write access, and checks for broken installs.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Checks common preconditions for install/uninstall operations
+ * Kills Slack if running, checks write access, and checks for broken installs
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
 async function checkPreconditions(resourcesDir) {
@@ -497,10 +489,10 @@ async function checkPreconditions(resourcesDir) {
 }
 
 /**
- * Installs or updates Taut on the Slack installation.
- * If the patch is missing or outdated, it will apply the patch.
- * Always copies the JS files to the config directory.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Installs or updates Taut on the Slack installation
+ * If the patch is missing or outdated, it will apply the patch
+ * Always copies the JS files to the config directory
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
 export async function install(resourcesDir) {
@@ -512,11 +504,11 @@ export async function install(resourcesDir) {
   // Check if we need to apply/update the patch
   const needsPatch =
     !asarInfo ||
-    asarInfo.name !== 'taut' ||
+    asarInfo.name !== 'taut-shim' ||
     asarInfo.patchVersion !== PATCH_VERSION
 
   if (needsPatch) {
-    if (asarInfo?.name === 'taut') {
+    if (asarInfo?.name === 'taut-shim') {
       console.log(
         `ℹ️  Updating patch from v${
           asarInfo.patchVersion || '?'
@@ -538,8 +530,8 @@ export async function install(resourcesDir) {
 }
 
 /**
- * Removes the Taut patch from Slack, restoring original files (internal).
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Removes the Taut patch from Slack, restoring original files (internal)
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
 async function removePatch(resourcesDir) {
@@ -599,8 +591,8 @@ async function removePatch(resourcesDir) {
 }
 
 /**
- * Uninstalls Taut from Slack, restoring original files.
- * @param {string} resourcesDir - The Slack resources directory path.
+ * Uninstalls Taut from Slack, restoring original files
+ * @param {string} resourcesDir - The Slack resources directory path
  * @returns {Promise<void>}
  */
 export async function uninstall(resourcesDir) {

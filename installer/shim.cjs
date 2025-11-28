@@ -1,8 +1,9 @@
-// @ts-nocheck
+// Entrypoint for the app.asar shim that is patched into Slack's resources directory
 
 const os = require('os')
-const { join } = require('path')
+const path = require('path')
 
+// This function is duplicated in helpers.js, keep in sync
 function osConfigDir() {
   switch (process.platform) {
     case 'win32':
@@ -10,7 +11,7 @@ function osConfigDir() {
 
     case 'darwin': {
       const home = os.homedir() || '~'
-      return join(home, 'Library', 'Preferences')
+      return path.join(home, 'Library', 'Preferences')
     }
 
     case 'linux':
@@ -19,14 +20,16 @@ function osConfigDir() {
       if (xdgConfigDir) return xdgConfigDir
 
       const home = os.homedir() || '~'
-      return join(home, '.config')
+      return path.join(home, '.config')
     }
   }
 }
+const configDir = path.join(osConfigDir(), 'taut')
 
-const configDir = join(osConfigDir(), 'taut')
-
-const injectJs = join(configDir, 'js', 'inject.js')
+// Load the injector script
+const injectJs = path.join(configDir, 'js', 'inject.cjs')
 require(injectJs)
 
+// Load the original Slack app
+// @ts-ignore
 require('../_app.asar')

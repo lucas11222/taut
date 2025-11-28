@@ -19,10 +19,6 @@
     "types": [],
     "skipLibCheck": true
   },
-  "include": [
-    "**/*.js"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["**/*.js", "**/*.cjs", "**/*.ts"],
+  "exclude": ["node_modules", "**/*.bundle.js"]
 }
