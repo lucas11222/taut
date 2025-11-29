@@ -81,7 +81,7 @@
      */
     updatePluginConfig(name, newConfig) {
       console.log(`[Taut] Updating config for plugin: ${name}`)
-      
+
       const existing = this.plugins.get(name)
       if (!existing) {
         console.warn(`[Taut] Plugin ${name} not loaded, cannot update config`)
@@ -97,14 +97,23 @@
       }
 
       const instance = new existing.PluginClass(this.api, newConfig)
-      this.plugins.set(name, { PluginClass: existing.PluginClass, instance, config: newConfig })
-      
+      this.plugins.set(name, {
+        PluginClass: existing.PluginClass,
+        instance,
+        config: newConfig,
+      })
+
       if (newConfig.enabled) {
         try {
           instance.start()
-          console.log(`[Taut] Plugin ${name} started successfully with new config`)
+          console.log(
+            `[Taut] Plugin ${name} started successfully with new config`
+          )
         } catch (err) {
-          console.error(`[Taut] Error starting plugin ${name} with new config:`, err)
+          console.error(
+            `[Taut] Error starting plugin ${name} with new config:`,
+            err
+          )
         }
       }
 

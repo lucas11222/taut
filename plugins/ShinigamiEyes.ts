@@ -49,34 +49,34 @@ export default class ShinigamiEyes extends TautPlugin {
 
   start(): void {
     this.log('Starting Shinigami Eyes...')
-    
+
     if (!this.getApiToken()) {
       this.log('Warning: No API token configured. Set apiToken in config.jsonc')
     }
-    
+
     this.initializeTrustLevels().then(() => {
       this.extractSlackUsers()
-      
+
       // Set up mutation observer for new messages
       this.observer = new MutationObserver(() => this.extractSlackUsers())
       this.observer.observe(document.body, { childList: true, subtree: true })
-      
+
       this.log('Loaded successfully!')
     })
   }
 
   stop(): void {
     this.log('Stopping...')
-    
+
     // Disconnect the observer
     if (this.observer) {
       this.observer.disconnect()
       this.observer = null
     }
-    
+
     // Remove any active tooltip
     this.hideTooltip()
-    
+
     // Clean up all modified buttons
     const trustedButtons = document.querySelectorAll<HTMLButtonElement>(
       'button.c-message__sender_button[data-trusted="true"]'
@@ -84,10 +84,10 @@ export default class ShinigamiEyes extends TautPlugin {
     trustedButtons.forEach((btn) => {
       btn.removeEventListener('mouseenter', this.boundHandleTrustHover)
       btn.removeEventListener('mouseleave', this.boundHandleTrustLeave)
-      
+
       // Reset cursor style
       btn.style.cursor = ''
-      
+
       // Remove the emoji prefix from the button text
       const firstChild = btn.firstChild
       if (firstChild && firstChild.nodeType === Node.TEXT_NODE) {
@@ -98,11 +98,11 @@ export default class ShinigamiEyes extends TautPlugin {
           firstChild.remove()
         }
       }
-      
+
       // Remove the data attribute
       delete btn.dataset.trusted
     })
-    
+
     // Clear trust levels cache from memory
     this.trustLevels = {}
   }
@@ -123,7 +123,11 @@ export default class ShinigamiEyes extends TautPlugin {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached && this.isCacheValid()) {
         this.trustLevels = JSON.parse(cached)
-        this.log('Loaded trust levels from cache:', Object.keys(this.trustLevels).length, 'users')
+        this.log(
+          'Loaded trust levels from cache:',
+          Object.keys(this.trustLevels).length,
+          'users'
+        )
         return true
       }
     } catch (e) {
@@ -136,7 +140,11 @@ export default class ShinigamiEyes extends TautPlugin {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(data))
       localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString())
-      this.log('Saved trust levels to cache:', Object.keys(data).length, 'users')
+      this.log(
+        'Saved trust levels to cache:',
+        Object.keys(data).length,
+        'users'
+      )
     } catch (e) {
       this.log('Error saving trust levels to cache:', e)
     }
@@ -150,7 +158,7 @@ export default class ShinigamiEyes extends TautPlugin {
       this.log('Cannot fetch trust levels: No API token configured')
       return
     }
-    
+
     this.log('Fetching fresh trust levels from API...')
     const allUsers: Record<string, number> = {}
 
@@ -191,12 +199,18 @@ export default class ShinigamiEyes extends TautPlugin {
           this.log(`Error parsing chunk ${start}-${end}:`, parseError)
         }
 
-        this.log(`Processed chunk ${start}-${end}, total users: ${Object.keys(allUsers).length}`)
+        this.log(
+          `Processed chunk ${start}-${end}, total users: ${Object.keys(allUsers).length}`
+        )
 
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
 
-      this.log('Successfully fetched trust levels:', Object.keys(allUsers).length, 'users')
+      this.log(
+        'Successfully fetched trust levels:',
+        Object.keys(allUsers).length,
+        'users'
+      )
 
       this.trustLevels = allUsers
       this.saveTrustLevelsToCache(allUsers)
@@ -225,7 +239,10 @@ export default class ShinigamiEyes extends TautPlugin {
 
   // Trust Level Rendering
 
-  private async setTrustLevel(btn: HTMLButtonElement, slackId: string): Promise<void> {
+  private async setTrustLevel(
+    btn: HTMLButtonElement,
+    slackId: string
+  ): Promise<void> {
     const trust = this.trustLevels[slackId] ?? 4
     this.renderTrust(btn, trust)
   }
@@ -265,10 +282,12 @@ export default class ShinigamiEyes extends TautPlugin {
     }, 200)
   }
 
-  private async fetchAuditLogs(slackId: string): Promise<Record<string, any>[] | null> {
+  private async fetchAuditLogs(
+    slackId: string
+  ): Promise<Record<string, any>[] | null> {
     const apiToken = this.getApiToken()
     if (!apiToken) return null
-    
+
     try {
       const userQuery = `SELECT id FROM users WHERE slack_uid = '${slackId}' LIMIT 1`
 
@@ -330,7 +349,10 @@ export default class ShinigamiEyes extends TautPlugin {
     }
   }
 
-  private async showAuditLogsTooltip(btn: HTMLButtonElement, slackId: string): Promise<void> {
+  private async showAuditLogsTooltip(
+    btn: HTMLButtonElement,
+    slackId: string
+  ): Promise<void> {
     this.isLoadingTooltip = true
 
     const rect = btn.getBoundingClientRect()
@@ -405,7 +427,10 @@ export default class ShinigamiEyes extends TautPlugin {
     })
   }
 
-  private createAuditLogsTooltip(rect: DOMRect, logs: Record<string, any>[]): void {
+  private createAuditLogsTooltip(
+    rect: DOMRect,
+    logs: Record<string, any>[]
+  ): void {
     const tooltip = document.createElement('div')
     tooltip.className = 'trust-audit-tooltip'
     tooltip.style.cssText = `

@@ -3,7 +3,7 @@
 // Loaded by the app.asar shim patched into Slack
 
 const Module = require('module')
-const fs = require('fs')
+const { promises: fs, watchFile, watch, readFileSync } = require('fs')
 const path = require('path')
 const electron = require('electron')
 
@@ -46,13 +46,27 @@ let originalPreloadContents = null
 let config = { plugins: {} }
 
 /**
- * Read the config file, or return default config if it doesn't exist
- * @returns {TautConfig}
+ * Check if a path exists without throwing an exception
+ * @param {string} filePath
+ * @returns {Promise<boolean>}
  */
-function readConfig() {
+async function fileExists(filePath) {
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const contents = fs.readFileSync(CONFIG_PATH, 'utf8')
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Read the config file, or return default config if it doesn't exist
+ * @returns {Promise<TautConfig>}
+ */
+async function readConfig() {
+  try {
+    if (await fileExists(CONFIG_PATH)) {
+      const contents = await fs.readFile(CONFIG_PATH, 'utf8')
       return parseJSONC(contents)
     }
   } catch (err) {
@@ -101,9 +115,9 @@ function isValidPluginFile(filename) {
  */
 function watchConfig() {
   console.log('[Taut] Watching config file:', CONFIG_PATH)
-  fs.watchFile(CONFIG_PATH, () => {
+  watchFile(CONFIG_PATH, async () => {
     console.log('[Taut] Config file changed')
-    const newConfig = readConfig()
+    const newConfig = await readConfig()
     const oldPluginConfigs = config.plugins || {}
     const newPluginConfigs = newConfig.plugins || {}
 
@@ -131,12 +145,12 @@ function watchConfig() {
 
 /**
  * Read the user.css file
- * @returns {string} The user.css contents, or empty string if not found
+ * @returns {Promise<string>} The user.css contents, or empty string if not found
  */
-function readUserCss() {
+async function readUserCss() {
   try {
-    if (fs.existsSync(USER_CSS_PATH)) {
-      return fs.readFileSync(USER_CSS_PATH, 'utf8')
+    if (await fileExists(USER_CSS_PATH)) {
+      return await fs.readFile(USER_CSS_PATH, 'utf8')
     }
   } catch (err) {
     console.error('[Taut] Failed to read user.css:', err)
@@ -147,8 +161,8 @@ function readUserCss() {
 /**
  * Send user.css to the renderer
  */
-function sendUserCss() {
-  const css = readUserCss()
+async function sendUserCss() {
+  const css = await readUserCss()
   if (BROWSER) {
     console.log('[Taut] Sending user.css')
     BROWSER.webContents.send('taut:user-css-changed', css)
@@ -160,9 +174,9 @@ function sendUserCss() {
  */
 function watchUserCss() {
   console.log('[Taut] Watching user.css file:', USER_CSS_PATH)
-  fs.watchFile(USER_CSS_PATH, () => {
+  watchFile(USER_CSS_PATH, async () => {
     console.log('[Taut] user.css file changed')
-    sendUserCss()
+    await sendUserCss()
   })
 }
 
@@ -170,22 +184,22 @@ function watchUserCss() {
  * Start watching a plugin directory for new/updated files
  * @param {string} dir - Directory to watch
  */
-function watchPluginDir(dir) {
+async function watchPluginDir(dir) {
   try {
-    if (!fs.existsSync(dir)) {
+    if (!(await fileExists(dir))) {
       console.log(`[Taut] Plugin directory does not exist, creating: ${dir}`)
-      fs.mkdirSync(dir, { recursive: true })
+      await fs.mkdir(dir, { recursive: true })
     }
 
     console.log('[Taut] Watching plugin directory:', dir)
-    fs.watch(dir, async (eventType, filename) => {
+    watch(dir, async (eventType, filename) => {
       if (!filename || !isValidPluginFile(filename)) return
 
       const filePath = path.join(dir, filename)
       console.log(`[Taut] Plugin file ${eventType}: ${filename}`)
 
       // Check if file exists (it might have been deleted)
-      if (!fs.existsSync(filePath)) {
+      if (!(await fileExists(filePath))) {
         console.log(`[Taut] Plugin file deleted: ${filename}`)
         return
       }
@@ -205,14 +219,14 @@ function watchPluginDir(dir) {
 /**
  * Scan a directory for plugin files
  * @param {string} dir
- * @returns {string[]} Array of absolute paths to plugin files
+ * @returns {Promise<string[]>} Array of absolute paths to plugin files
  */
-function scanPluginDir(dir) {
+async function scanPluginDir(dir) {
   /** @type {string[]} */
   const plugins = []
   try {
-    if (!fs.existsSync(dir)) return plugins
-    const files = fs.readdirSync(dir)
+    if (!(await fileExists(dir))) return plugins
+    const files = await fs.readdir(dir)
     for (const file of files) {
       const ext = path.extname(file)
       if (PLUGIN_EXTENSIONS.includes(ext)) {
@@ -247,13 +261,14 @@ electron.ipcMain.handle('taut:start-plugins', async () => {
     }
 
     // Read and store config
-    config = readConfig()
+    config = await readConfig()
 
     // Scan both plugin directories
-    const pluginFiles = [
-      ...scanPluginDir(PLUGINS_DIR),
-      ...scanPluginDir(USER_PLUGINS_DIR),
-    ]
+    const [corePlugins, userPlugins] = await Promise.all([
+      scanPluginDir(PLUGINS_DIR),
+      scanPluginDir(USER_PLUGINS_DIR),
+    ])
+    const pluginFiles = [...corePlugins, ...userPlugins]
     console.log(
       `[Taut] Found ${pluginFiles.length} plugin files:`,
       pluginFiles,
@@ -272,7 +287,7 @@ electron.ipcMain.handle('taut:start-plugins', async () => {
     watchPluginDir(USER_PLUGINS_DIR)
 
     // Send initial user.css
-    sendUserCss()
+    await sendUserCss()
 
     console.log(`[Taut] Started plugins`)
   } catch (err) {
@@ -327,7 +342,8 @@ redirected.set(
     const originalPreloadPath = options.webPreferences.preload || ''
     if (originalPreloadPath) {
       try {
-        originalPreloadContents = fs.readFileSync(originalPreloadPath, 'utf8')
+        // Needs to be sync because we want to get this ready before giving control back to Slack
+        originalPreloadContents = readFileSync(originalPreloadPath, 'utf8')
         console.log('[Taut] Cached original preload from:', originalPreloadPath)
       } catch (err) {
         console.error('[Taut] Failed to read original preload:', err)
@@ -346,8 +362,8 @@ redirected.set(
     // Inject client.js on page load
     BROWSER.webContents.on('did-finish-load', async () => {
       try {
-        if (fs.existsSync(CLIENT_JS_PATH)) {
-          const clientJs = fs.readFileSync(CLIENT_JS_PATH, 'utf8')
+        if (await fileExists(CLIENT_JS_PATH)) {
+          const clientJs = await fs.readFile(CLIENT_JS_PATH, 'utf8')
           console.log('[Taut] Injecting client.js')
           await BROWSER?.webContents.executeJavaScript(clientJs)
         } else {

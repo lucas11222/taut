@@ -76,13 +76,17 @@ function startUserCssObserver() {
  */
 function updateUserCss(css) {
   currentUserCss = css
-  
+
   // Wait for DOM to be ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      ensureUserCssStyle()
-      startUserCssObserver()
-    }, { once: true })
+    document.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        ensureUserCssStyle()
+        startUserCssObserver()
+      },
+      { once: true }
+    )
   } else {
     ensureUserCssStyle()
     startUserCssObserver()

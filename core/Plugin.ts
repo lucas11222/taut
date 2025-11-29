@@ -48,4 +48,7 @@ export abstract class TautPlugin {
 }
 
 export default TautPlugin
-export type TautPluginConstructor = new (api: TautAPI, config: object) => TautPlugin
+export type TautPluginConstructor = new (
+  api: TautAPI,
+  config: object
+) => TautPlugin

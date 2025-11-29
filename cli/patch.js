@@ -417,7 +417,7 @@ export async function copyJsToConfigDir() {
 
   const coreSourceDir = path.join(__dirname, '..', 'core')
   const pluginsSourceDir = path.join(__dirname, '..', 'plugins')
-  
+
   const coreDestDir = path.join(configDir, 'core')
   const pluginsDestDir = path.join(configDir, 'plugins')
   const userPluginsDestDir = path.join(configDir, 'user-plugins')

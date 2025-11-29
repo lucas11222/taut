@@ -117,5 +117,7 @@ export async function stopEsbuild() {
 }
 
 export function parseJSONC(text: string): any {
-  return jsonc.parse(text)
+  return jsonc.parse(text, undefined, {
+    allowTrailingComma: true,
+  })
 }
