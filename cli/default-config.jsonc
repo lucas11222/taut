@@ -7,6 +7,10 @@
       "enabled": false,
       // https://hackatime.hackclub.com/admin/admin_api_keys
       "apiToken": ""
+    },
+    "Oneko": {
+      "enabled": false,
+      "speed": 10
     }
   }
 }
