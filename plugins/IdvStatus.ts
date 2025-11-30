@@ -26,10 +26,10 @@ export default class IdvStatus extends TautPlugin {
       }, 500)
     })
     this.observer.observe(document.body, { childList: true, subtree: true })
-    
+
     // @ts-ignore
     window.tautIdvClearCache = () => this.clearCache()
-    
+
     this.log('IDV Status loaded')
   }
 
@@ -64,9 +64,12 @@ export default class IdvStatus extends TautPlugin {
       '.taut-idv-avatar-not-eligible, .taut-idv-avatar-over-18'
     )
     processedAvatars.forEach((el) => {
-      el.classList.remove('taut-idv-avatar-not-eligible', 'taut-idv-avatar-over-18')
+      el.classList.remove(
+        'taut-idv-avatar-not-eligible',
+        'taut-idv-avatar-over-18'
+      )
     })
-    
+
     // @ts-ignore
     delete window.tautIdvClearCache
   }
@@ -148,16 +151,16 @@ export default class IdvStatus extends TautPlugin {
       this.log('Error saving IDV cache:', e)
     }
   }
-  
+
   private setCache(slackId: string, status: string): void {
     this.idvCache[slackId] = status
-    
+
     const keys = Object.keys(this.idvCache)
     if (keys.length > MAX_CACHE_SIZE) {
-        const toRemove = keys.slice(0, 100)
-        toRemove.forEach(k => delete this.idvCache[k])
+      const toRemove = keys.slice(0, 100)
+      toRemove.forEach((k) => delete this.idvCache[k])
     }
-    
+
     this.saveIdvCache()
   }
 
@@ -165,14 +168,15 @@ export default class IdvStatus extends TautPlugin {
     if (this.idvCache[slackId]) return this.idvCache[slackId]
 
     try {
+      // TODO: Make a proper fetch api for cors bypassing without a 3rd party proxy
       const response = await fetch(
         `https://corsproxy.io/?${IDV_API_URL}?slack_id=${slackId}`
       )
-      
+
       if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
 
       let status = 'unverified'
@@ -181,11 +185,14 @@ export default class IdvStatus extends TautPlugin {
           status = 'eligible'
         } else if (data.result === 'verified_but_over_18') {
           status = 'over_18'
-        } else if (data.result === 'pending' || data.result === 'needs_submission') {
+        } else if (
+          data.result === 'pending' ||
+          data.result === 'needs_submission'
+        ) {
           status = 'unverified'
         }
       }
-      
+
       this.setCache(slackId, status)
       return status
     } catch (e) {
@@ -204,12 +211,12 @@ export default class IdvStatus extends TautPlugin {
       const hasClass =
         btn.classList.contains('taut-idv-not-eligible') ||
         btn.classList.contains('taut-idv-over-18')
-      
+
       if (hasClass) return
-      
+
       // allow re-fetching/re-applying if class is missing
     }
-    
+
     btn.dataset.idvChecked = 'true'
 
     const status = await this.fetchIdvStatus(slackId)
@@ -290,7 +297,9 @@ export default class IdvStatus extends TautPlugin {
         return
 
       if (slackId && (slackId.startsWith('U') || slackId.startsWith('W'))) {
-        this.renderIdv(btn, slackId).catch(e => this.log('Error rendering IDV:', e))
+        this.renderIdv(btn, slackId).catch((e) =>
+          this.log('Error rendering IDV:', e)
+        )
       }
     })
   }
