@@ -390,18 +390,20 @@ electron.app.whenReady().then(() => {
   electron.session.defaultSession.webRequest.onBeforeSendHeaders(
     (details, callback) => {
       const getHeader = (/** @type {string} */ headerName) => {
-        const foundKey = Object.keys(details.requestHeaders).find((key) => key.toLowerCase() === headerName.toLowerCase())
+        const foundKey = Object.keys(details.requestHeaders).find(
+          (key) => key.toLowerCase() === headerName.toLowerCase()
+        )
         return foundKey ? details.requestHeaders[foundKey] : null
       }
-        requestMap.set(details.id, {
-          origin: getHeader('origin'),
-          requestedMethod: getHeader('access-control-request-method'),
-          requestedHeaders: getHeader('access-control-request-headers'),
-        })
-        // Clean up after 5 minutes to avoid memory leaks
-        setTimeout(() => requestMap.delete(details.id), 5 * 60 * 1000)
-      
-      callback({ })
+      requestMap.set(details.id, {
+        origin: getHeader('origin'),
+        requestedMethod: getHeader('access-control-request-method'),
+        requestedHeaders: getHeader('access-control-request-headers'),
+      })
+      // Clean up after 5 minutes to avoid memory leaks
+      setTimeout(() => requestMap.delete(details.id), 5 * 60 * 1000)
+
+      callback({})
     }
   )
   electron.session.defaultSession.webRequest.onHeadersReceived(
@@ -454,9 +456,7 @@ electron.app.whenReady().then(() => {
             requestInfo.requestedHeaders,
           ]
         }
-        responseHeaders['Access-Control-Expose-Headers'] = [
-          responseHeaderNames,
-        ]
+        responseHeaders['Access-Control-Expose-Headers'] = [responseHeaderNames]
         responseHeaders['Vary'] = ['Origin']
       }
       callback({ responseHeaders })

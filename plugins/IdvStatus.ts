@@ -168,9 +168,7 @@ export default class IdvStatus extends TautPlugin {
     if (this.idvCache[slackId]) return this.idvCache[slackId]
 
     try {
-      const response = await fetch(
-        `${IDV_API_URL}?slack_id=${slackId}`
-      )
+      const response = await fetch(`${IDV_API_URL}?slack_id=${slackId}`)
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

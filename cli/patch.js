@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import { existsSync, constants, readdirSync } from 'node:fs'
 import path from 'node:path'
-import os, { platform } from 'node:os'
+import os from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createPackage, extractFile } from '@electron/asar'
 import { fileURLToPath } from 'node:url'
