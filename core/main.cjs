@@ -378,6 +378,88 @@ redirected.set(
   }
 )
 
+// Allow all CORS requests by setting ACAO header to https://app.slack.com
+// Doesn't modifiy requests from iframes for security but also to not break them
+electron.app.whenReady().then(() => {
+  /**
+   * Stores the origin for each request ID
+   * @type {Map<number, {origin: string | null, requestedMethod: string | null, requestedHeaders: string | null}>}
+   **/
+  const requestMap = new Map()
+
+  electron.session.defaultSession.webRequest.onBeforeSendHeaders(
+    (details, callback) => {
+      const getHeader = (/** @type {string} */ headerName) => {
+        const foundKey = Object.keys(details.requestHeaders).find((key) => key.toLowerCase() === headerName.toLowerCase())
+        return foundKey ? details.requestHeaders[foundKey] : null
+      }
+        requestMap.set(details.id, {
+          origin: getHeader('origin'),
+          requestedMethod: getHeader('access-control-request-method'),
+          requestedHeaders: getHeader('access-control-request-headers'),
+        })
+        // Clean up after 5 minutes to avoid memory leaks
+        setTimeout(() => requestMap.delete(details.id), 5 * 60 * 1000)
+      
+      callback({ })
+    }
+  )
+  electron.session.defaultSession.webRequest.onHeadersReceived(
+    (details, callback) => {
+      const responseHeaders = details.responseHeaders || {}
+      let shouldModify = false
+
+      if (details.frame) {
+        try {
+          const frameOrigin = new URL(details.frame.url).origin
+          if (frameOrigin === 'https://app.slack.com') {
+            shouldModify = true
+          }
+        } catch {
+          // Ignore URL parsing errors
+        }
+      }
+
+      if (shouldModify) {
+        // Remove existing ACAO headers (case-insensitive)
+        Object.keys(responseHeaders).forEach((headerKey) => {
+          if (headerKey.toLowerCase() === 'access-control-allow-origin') {
+            delete responseHeaders[headerKey]
+          }
+        })
+        const requestInfo = requestMap.get(details.id)
+        requestMap.delete(details.id)
+
+        const responseHeaderNames = Object.keys(responseHeaders).join(', ')
+
+        responseHeaders['Access-Control-Allow-Origin'] = [
+          requestInfo?.origin ?? 'https://app.slack.com',
+        ]
+        if (requestInfo?.requestedMethod) {
+          responseHeaders['Access-Control-Allow-Methods'] = [
+            requestInfo.requestedMethod,
+          ]
+        }
+        if (requestInfo?.requestedHeaders) {
+          responseHeaders['Access-Control-Allow-Headers'] = [
+            requestInfo.requestedHeaders,
+          ]
+        }
+        responseHeaders['Access-Control-Expose-Headers'] = [
+          responseHeaderNames,
+        ]
+        responseHeaders['Vary'] = ['Origin']
+        Object.keys(responseHeaders).forEach((headerKey) => {
+          if (headerKey.toLowerCase() === 'x-frame-options') {
+            delete responseHeaders[headerKey]
+          }
+        })
+      }
+      callback({ responseHeaders })
+    }
+  )
+})
+
 // Custom application menu with Taut options
 electron.Menu.setApplicationMenu(
   electron.Menu.buildFromTemplate(
