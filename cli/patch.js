@@ -83,12 +83,14 @@ export async function getBinaryFuses(binaryPath) {
 
 /**
  * Gets possible Slack installation paths on Windows
+ * If needed, uses admin to give the needed permissions to the current user
  * @returns {string[]} Array of potential resource directory paths
  */
 function getWindowsSlackPaths() {
   // Prefer Program Files WindowsApps install location which looks like:
   // C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.47.65.0_arm64__8yrtsj140pw4g\app\resources
-  const programFiles = process.env['ProgramFiles'] || process.env['ProgramW6432']
+  const programFiles =
+    process.env['ProgramFiles'] || process.env['ProgramW6432']
   if (!programFiles) return []
   const windowsApps = path.join(programFiles, 'WindowsApps')
   try {
@@ -100,11 +102,62 @@ function getWindowsSlackPaths() {
       .reverse()
 
     if (slackPkgs.length > 0) {
-      return slackPkgs.map((pkg) => path.join(windowsApps, pkg, 'app', 'resources'))
+      return slackPkgs.map((pkg) =>
+        path.join(windowsApps, pkg, 'app', 'resources')
+      )
     }
-  } catch {}
+  } catch {
+    // If we can't read WindowsApps, we need to obtain permissions first
+    windowsObtainPermissions()
+    // Retry after obtaining permissions
+    const entries = readdirSync(windowsApps)
+    const slackPkgs = entries
+      .filter((e) => e.startsWith('com.tinyspeck.slackdesktop_'))
+      .sort()
+      .reverse()
+    if (slackPkgs.length > 0) {
+      return slackPkgs.map((pkg) =>
+        path.join(windowsApps, pkg, 'app', 'resources')
+      )
+    }
+  }
 
   return []
+}
+
+/**
+ * Runs the windows-access.ps1 script with elevation to obtain permissions
+ * for accessing the WindowsApps directory where Slack is installed
+ */
+export function windowsObtainPermissions() {
+  if (process.platform !== 'win32') return
+
+  const scriptPath = path.join(__dirname, 'windows-access.ps1')
+  const currentUser = process.env.USERNAME || ''
+
+  // The script self-elevates via Start-Process -Verb RunAs internally
+  const result = spawnSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      scriptPath,
+      ...(currentUser ? ['-User', currentUser] : []),
+    ],
+    { stdio: 'inherit' }
+  )
+
+  if (result.error) {
+    throw new Error(`Failed to spawn PowerShell: ${result.error.message}`)
+  }
+
+  if (result.status !== 0) {
+    throw new Error(
+      `Failed to obtain permissions (exit code ${result.status}). User may have declined elevation.`
+    )
+  }
 }
 
 /**
