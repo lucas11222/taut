@@ -13,7 +13,6 @@ export default class IdvStatus extends TautPlugin {
   idvCache: Record<string, string> = {}
   stylesElement: HTMLStyleElement | null = null
   observer: MutationObserver | null = null
-  mutationTimeout: ReturnType<typeof setTimeout> | null = null
 
   start(): void {
     this.log('Starting IDV Status...')
@@ -21,13 +20,8 @@ export default class IdvStatus extends TautPlugin {
     this.injectStyles()
     this.processIdvUsers()
 
-    // debounced mutation observer
-    this.observer = new MutationObserver(() => {
-      if (this.mutationTimeout) clearTimeout(this.mutationTimeout)
-      this.mutationTimeout = setTimeout(() => {
-        this.processIdvUsers()
-      }, 500)
-    })
+    // Set up mutation observer for new messages
+    this.observer = new MutationObserver(() => this.processIdvUsers())
     this.observer.observe(document.body, { childList: true, subtree: true })
 
     // @ts-ignore
@@ -41,10 +35,6 @@ export default class IdvStatus extends TautPlugin {
     if (this.observer) {
       this.observer.disconnect()
       this.observer = null
-    }
-    if (this.mutationTimeout) {
-      clearTimeout(this.mutationTimeout)
-      this.mutationTimeout = null
     }
     if (this.stylesElement) {
       this.stylesElement.remove()
@@ -200,11 +190,8 @@ export default class IdvStatus extends TautPlugin {
   }
 
   processIdvUsers(): void {
-    // Select ALL sender buttons, not just unchecked ones
-    // This allows us to catch elements where React stripped the class
-    // Updates are weird - it triggers re-renders when you wouldn't expect
     const senderButtons = document.querySelectorAll<HTMLButtonElement>(
-      'button.c-message__sender_button'
+      'button.c-message__sender_button:not([data-idv-checked="true"])'
     )
 
     senderButtons.forEach((btn) => {
