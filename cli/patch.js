@@ -602,16 +602,32 @@ async function checkPatchPreconditions(resourcesDir) {
   }
 
   if (!(await checkWriteAccess(resourcesDir))) {
-    if (process.platform === 'darwin') {
+    if (process.platform === 'win32') {
+      // Try to obtain permissions
+      try {
+        windowsObtainPermissions()
+      } catch (err) {
+        console.error('❌ Failed to obtain permissions:', err)
+        process.exit(1)
+      }
+
+      // Re-check access
+      if (!(await checkWriteAccess(resourcesDir))) {
+        console.error('❌ Permission denied even after obtaining permissions.')
+        process.exit(1)
+      }
+    } else if (process.platform === 'darwin') {
       console.error(
-        '❌ Permission denied. Try running with sudo or grant Full Disk Access.'
+        '❌ Permission denied. Go to Settings > Privacy & Security > Full Disk Access and grant your terminal app access.'
       )
+      process.exit(1)
     } else if (process.platform === 'linux') {
       console.error('❌ Permission denied. Try running with sudo.')
+      process.exit(1)
     } else {
       console.error('❌ Permission denied.')
+      process.exit(1)
     }
-    process.exit(1)
   }
 
   if (await isBroken(resourcesDir)) {
