@@ -19,8 +19,14 @@ const PLUGINS_DIR = path.join(TAUT_DIR, 'plugins')
 const USER_PLUGINS_DIR = path.join(TAUT_DIR, 'user-plugins')
 const CONFIG_PATH = path.join(TAUT_DIR, 'config.jsonc')
 const USER_CSS_PATH = path.join(TAUT_DIR, 'user.css')
-const ESBUILD_WASM_PATH = path.join(TAUT_DIR, 'core', 'main', 'deps', 'esbuild.wasm')
-const PRELOAD_JS_PATH = path.join(TAUT_DIR, 'core', 'preload', 'preload.cjs')
+const ESBUILD_WASM_PATH = path.join(
+  TAUT_DIR,
+  'core',
+  'main',
+  'deps',
+  'esbuild.wasm'
+)
+const PRELOAD_JS_PATH = path.join(TAUT_DIR, 'core', 'preload', 'preload.js')
 const CLIENT_JS_PATH = path.join(TAUT_DIR, 'core', 'renderer', 'client.js')
 
 /** @type {boolean} */
@@ -297,7 +303,7 @@ electron.ipcMain.handle('taut:start-plugins', async () => {
   }
 })
 
-// Handler: Get original preload contents (for preload.cjs)
+// Handler: Get original preload contents (for preload.js)
 electron.ipcMain.handle('taut:get-original-preload', () => {
   return originalPreloadContents
 })

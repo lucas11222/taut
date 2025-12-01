@@ -1,9 +1,9 @@
 // Abstract base class for all Taut plugins
 
-import type { TautAPI } from './preload/preload.cjs'
+import type { TautAPI } from './preload/preload.js'
 import type { TautPluginConfig } from './main/main.cjs'
 
-export type { TautAPI } from './preload/preload.cjs'
+export type { TautAPI } from './preload/preload.js'
 export type { TautPluginConfig } from './main/main.cjs'
 
 /**
