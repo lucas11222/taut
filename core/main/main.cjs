@@ -314,32 +314,14 @@ electron.ipcMain.handle('taut:get-original-preload', () => {
  */
 let BROWSER
 
-/**
- * List of module name patterns to intercept and wrap
- * @type {RegExp[]}
- */
-const modules = [/^electron.*$/]
-
-/**
- * Map of function paths to their redirect handlers
- * @type {Map<string, Function>}
- */
-const redirected = new Map()
-
-// Redirect BrowserWindow constructor to inject our preload and setup CSP stripping
-redirected.set(
-  '<electron>.BrowserWindow.<constructor>',
+const OriginalBrowserWindow = electron.BrowserWindow
+// @ts-ignore
+class TautBrowserWindow extends OriginalBrowserWindow {
   /**
-   * @param {typeof electron.BrowserWindow} target
-   * @param {[electron.BrowserWindowConstructorOptions?]} args
-   * @param {Function} newTarget
-   * @returns {electron.BrowserWindow}
+   * @param {Electron.BrowserWindowConstructorOptions} options
    */
-  (target, [options], newTarget) => {
+  constructor(options) {
     console.log('[Taut] Constructing BrowserWindow')
-    if (typeof options !== 'object') {
-      options = {}
-    }
     if (!options.webPreferences) {
       options.webPreferences = {}
     }
@@ -361,18 +343,16 @@ redirected.set(
     // Use our custom preload
     options.webPreferences.preload = PRELOAD_JS_PATH
 
-    BROWSER = Reflect.construct(target, [options], newTarget)
-    if (!BROWSER) {
-      throw new Error('Failed to create BrowserWindow')
-    }
+    super(options)
+    BROWSER = this
 
     // Inject client.js on page load
-    BROWSER.webContents.on('did-finish-load', async () => {
+    this.webContents.on('did-finish-load', async () => {
       try {
         if (await fileExists(CLIENT_JS_PATH)) {
           const clientJs = await fs.readFile(CLIENT_JS_PATH, 'utf8')
           console.log('[Taut] Injecting client.js')
-          await BROWSER?.webContents.executeJavaScript(clientJs)
+          await this.webContents.executeJavaScript(clientJs)
         } else {
           console.error('[Taut] client.js not found at:', CLIENT_JS_PATH)
         }
@@ -380,10 +360,10 @@ redirected.set(
         console.error('[Taut] Failed to inject client.js:', err)
       }
     })
-
-    return BROWSER
   }
-)
+}
+
+electron.BrowserWindow = TautBrowserWindow
 
 // Allow all CORS requests by setting ACAO header to https://app.slack.com
 // Doesn't modifiy requests from iframes for security but also to not break them
@@ -528,16 +508,8 @@ electron.Menu.setApplicationMenu(
     ])
   )
 )
-redirected.set(
-  '<electron>.Menu.setApplicationMenu',
-  /**
-   * Redirect for Menu.setApplicationMenu to be a no-op
-   * @param {Function} target - The original setApplicationMenu function
-   * @param {any} thisArg - The this context
-   * @param {[electron.Menu | null]} argArray - Function arguments
-   */
-  (target, thisArg, argArray) => {}
-)
+// Redirect for Menu.setApplicationMenu to be a no-op
+electron.Menu.setApplicationMenu = () => {}
 
 /**
  * Deep equality for JSON-serializable values
@@ -573,127 +545,4 @@ function deepEqual(left, right) {
   return Object.keys(right).length === keyCount
 }
 
-// Proxy wrapper code
 
-/** Marker that allows us to detect and unwrap our Proxy instances. */
-const PROXIED = Symbol('taut:proxied')
-/**
- * Detects if a value is a Proxy created by our wrap function
- * @param {any} val
- * @returns {boolean}
- */
-function isProxied(val) {
-  if (!(typeof val === 'object' || typeof val === 'function')) return false
-  const prototype = Reflect.getPrototypeOf(val)
-  return (
-    Reflect.has(val, PROXIED) && !(prototype && Reflect.has(prototype, PROXIED))
-  )
-}
-/**
- * Unwraps a value if it is a Proxy created by our wrap function
- * @param {any} val
- * @returns {any}
- */
-function unproxy(val) {
-  return isProxied(val) ? val[PROXIED] : val
-}
-/**
- * Converts a property key to a string for logging
- * @param {string|symbol} p
- * @returns {string}
- */
-function prop(p) {
-  return typeof p === 'symbol' ? p.toString() : p
-}
-
-/**
- * Recursively wraps objects in a Proxy, keeping track of the access path in `log`
- * Based on the access path, function calls and constructors can be redirected
- * @template T
- * @param {T} obj - The object or function to wrap
- * @param {string} log - The current access path for logging and redirect lookup
- * @returns {T} The wrapped proxy or the original value if not wrappable
- */
-function wrap(obj, log) {
-  if (
-    !((typeof obj === 'object' && obj !== null) || typeof obj === 'function')
-  ) {
-    return obj
-  }
-
-  return new Proxy(obj, {
-    get(target, p, receiver) {
-      const newLog = `${log}.${prop(p)}`
-
-      if (p === PROXIED) return target
-
-      receiver = unproxy(receiver)
-      const val = Reflect.get(target, p, receiver)
-      const desc = Reflect.getOwnPropertyDescriptor(target, p)
-      if (desc && desc.configurable === false && desc.writable === false) {
-        return val
-      }
-
-      return wrap(val, newLog)
-    },
-
-    has(target, p) {
-      if (p === PROXIED) return true
-      return Reflect.has(target, p)
-    },
-
-    set(target, p, newValue, receiver) {
-      return Reflect.set(target, p, newValue, unproxy(receiver))
-    },
-
-    apply(target, thisArg, argArray) {
-      const handler = redirected.get(log)
-      const normalizedThis = unproxy(thisArg)
-      if (handler) {
-        // @ts-ignore - handler types are dynamic
-        return handler(target, normalizedThis, argArray)
-      }
-      // @ts-ignore - target is known to be callable at this point
-      return Reflect.apply(target, normalizedThis, argArray)
-    },
-
-    construct(target, argArray, newTarget) {
-      try {
-        const constructorLog = `${log}.<constructor>`
-        if (redirected.has(constructorLog)) {
-          const handler = redirected.get(constructorLog)
-          if (handler) {
-            // @ts-ignore - handler types are dynamic
-            return handler(target, argArray, newTarget)
-          }
-        }
-        // @ts-ignore - target is known to be constructable at this point
-        return Reflect.construct(target, argArray, newTarget)
-      } catch (err) {
-        console.warn(`taut loader construct ${log} failed`, err)
-      }
-    },
-  })
-}
-
-// @ts-ignore - Module._load is an internal Node.js API
-const oldLoad = Module._load
-
-/**
- * Override for Module._load to wrap electron modules before they are exposed
- * @param {string} request - The module request string
- * @param {NodeJS.Module} parent - The parent module
- * @param {boolean} isMain - Whether this is the main module
- * @returns {any} The module exports, potentially wrapped
- */
-function _load(request, parent, isMain) {
-  // @ts-ignore - using arguments for proper this binding
-  const exports = oldLoad.apply(this, arguments)
-  if (modules.some((x) => x.test(request))) {
-    return wrap(exports, `<${request}>`)
-  }
-  return exports
-}
-
-// @ts-ignore - Module._load is an internal Node.js API
-Module._load = _load

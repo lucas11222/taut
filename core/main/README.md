@@ -3,7 +3,7 @@
 The main process code, runs in the Electron main process before Slack starts.
 Responsible for:
 
-- Intercepting Electron APIs to inject the preload script and renderer code
+- Monkey patching Electron APIs to inject the preload script and renderer code
   (plus other tweaks like enabling devtools and bypassing CORS)
 - Reading and watching the config dir for changes
 - Building plugins with esbuild (running in WASM)
