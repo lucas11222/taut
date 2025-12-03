@@ -552,8 +552,13 @@ const fakeWhenReadyPromise = (async () => {
     )
     // https://github.com/electron/electron/issues/41613#issuecomment-2644018998
     for (const extension of extensions) {
-      if (extension.manifest?.manifest_version === 3 && extension.manifest?.background?.service_worker) {
-        await electron.session.defaultSession.serviceWorkers.startWorkerForScope(extension.url)
+      if (
+        extension.manifest?.manifest_version === 3 &&
+        extension.manifest?.background?.service_worker
+      ) {
+        await electron.session.defaultSession.serviceWorkers.startWorkerForScope(
+          extension.url
+        )
       }
     }
   } catch (err) {

@@ -5,7 +5,10 @@ import * as jsonc from 'jsonc-parser/lib/esm/main.js'
 import resolve from 'resolve'
 import path from 'node:path'
 import fs from 'node:fs'
-import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer'
+import {
+  installExtension,
+  REACT_DEVELOPER_TOOLS,
+} from 'electron-devtools-installer'
 
 const defaultLoader: Record<string, esbuild.Loader | undefined> = {
   '.ts': 'ts',
