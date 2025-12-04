@@ -60,12 +60,6 @@ export async function bundle(entryPath: string): Promise<string> {
         name: 'load-plugin',
         setup(build) {
           build.onResolve({ filter: /.*/ }, async (args) => {
-            console.log(
-              `[esbuild] Resolving`,
-              args.path,
-              'from',
-              args.resolveDir
-            )
             const resolvedPath = await new Promise<string>((r, reject) => {
               resolve(
                 args.path,
@@ -88,7 +82,6 @@ export async function bundle(entryPath: string): Promise<string> {
                 }
               )
             })
-            console.log(`[esbuild] Resolved`, args.path, 'to', resolvedPath)
             return { path: resolvedPath }
           })
 

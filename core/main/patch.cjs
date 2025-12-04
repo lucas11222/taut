@@ -91,11 +91,9 @@ Module._load = function (request, parent, isMain) {
   // only intercept 'electron'
   const originalExports = originalLoad.apply(this, [request, parent, isMain])
   if (request === 'electron') {
-    console.log('[Taut] electron module loaded, wrapping in a Proxy')
     const newExports = new Proxy(originalExports, {
       get(target, prop, receiver) {
         if (prop === 'BrowserWindow') {
-          console.log('[Taut] Returning proxied BrowserWindow')
           return proxiedBrowserWindow
         }
         return Reflect.get(target, prop, receiver)
@@ -196,14 +194,9 @@ const fakeWhenReadyPromise = (async () => {
 
   // Install React DevTools
   try {
-    console.log('[Taut] Installing React Developer Tools...')
     await installReactDevtools()
-    console.log('[Taut] React Developer Tools installed')
     const extensions =
       electron.session.defaultSession.extensions.getAllExtensions()
-    console.log(
-      `[Taut] Installed extensions: ${extensions.map((ext) => `${ext.name} (${ext.version})`).join(', ')}`
-    )
     // https://github.com/electron/electron/issues/41613#issuecomment-2644018998
     for (const extension of extensions) {
       if (
@@ -215,6 +208,7 @@ const fakeWhenReadyPromise = (async () => {
         )
       }
     }
+    console.log('[Taut] React Developer Tools installed')
   } catch (err) {
     console.error('[Taut] Failed to install React Developer Tools:', err)
   }

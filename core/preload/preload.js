@@ -45,32 +45,6 @@ function ensureUserCssStyle() {
 }
 
 /**
- * Start observing for user.css element removal
- */
-function startUserCssObserver() {
-  if (userCssObserver) return
-
-  // Observe document.head for child removal
-  userCssObserver = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      const removedNodes = Array.from(mutation.removedNodes)
-      for (const node of removedNodes) {
-        if (node instanceof HTMLElement && node.id === TAUT_USER_CSS_ID) {
-          console.log('[Taut] user.css style was removed, restoring...')
-          ensureUserCssStyle()
-          return
-        }
-      }
-    }
-  })
-
-  // Start observing when head is ready
-  if (document.head) {
-    userCssObserver.observe(document.head, { childList: true })
-  }
-}
-
-/**
  * Update the user.css content
  * @param {string} css - The new CSS content
  */
@@ -83,13 +57,11 @@ function updateUserCss(css) {
       'DOMContentLoaded',
       () => {
         ensureUserCssStyle()
-        startUserCssObserver()
       },
       { once: true }
     )
   } else {
     ensureUserCssStyle()
-    startUserCssObserver()
   }
 }
 
@@ -98,21 +70,6 @@ ipcRenderer.on('taut:user-css-changed', (event, css) => {
   console.log('[Taut] Received user.css update')
   updateUserCss(css)
 })
-
-// Re-inject styles on page navigation (did-navigate)
-// The preload script runs fresh on each navigation, but we store CSS in memory
-// Also handle the case where head is replaced
-const headObserver = new MutationObserver(() => {
-  if (document.head && !document.getElementById(TAUT_USER_CSS_ID)) {
-    ensureUserCssStyle()
-    startUserCssObserver()
-  }
-})
-
-// Start observing document for head changes
-if (document.documentElement) {
-  headObserver.observe(document.documentElement, { childList: true })
-}
 
 // Expose TautAPI to the renderer world
 const TautAPI = {
@@ -138,14 +95,6 @@ const TautAPI = {
         callback(name, newConfig)
       }
     )
-  },
-
-  /**
-   * Log to stdout, not the browser console
-   * @param {...any} args - Arguments to log
-   */
-  logMain: (...args) => {
-    console.log('[Taut]', ...args)
   },
 }
 contextBridge.exposeInMainWorld('TautAPI', TautAPI)
