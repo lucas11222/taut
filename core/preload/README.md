@@ -5,7 +5,7 @@ preload world. Responsible for:
 
 - Communicating with the main process via IPC
 - Updating a `<style>` tag with the contents of `user.css`
-- Making `window.TautAPI` available to the renderer process, allowing the
+- Making `window.TautBridge` available to the renderer process, allowing the
   renderer code to communicate with the main process
 - Fetching Slack's original preload script and `eval`ing it
 

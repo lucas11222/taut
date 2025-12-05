@@ -1,10 +1,60 @@
 // Abstract base class for all Taut plugins
 
-import type { TautAPI } from './preload/preload.js'
 import type { TautPluginConfig } from './main/plugins.cjs'
-
-export type { TautAPI } from './preload/preload.js'
 export type { TautPluginConfig } from './main/plugins.cjs'
+
+export type TautAPI = {
+  /**
+   * Ask the main process to start sending plugins and configs
+   */
+  startPlugins: () => Promise<void>
+
+  /**
+   * Subscribe to config changes with a callback
+   * @param callback - Callback to invoke on config changes
+   */
+  onConfigChange: (
+    callback: (name: string, newConfig: TautPluginConfig) => void
+  ) => void
+
+  /**
+   * Find Webpack exports matching a filter function
+   * @param filter - Filter function to match exports
+   * @param all - Whether to return all matches or just the first (default: false)
+   */
+  findExport: (
+    filter: (exp: any) => boolean,
+    all?: boolean
+  ) => any | any[] | null
+
+  /**
+   * Find Webpack exports by their properties
+   * @param props - Array of property names to match
+   * @param all - Whether to return all matches or just the first (default: false)
+   */
+  findByProps: (props: string[], all?: boolean) => any | any[] | null
+
+  /**
+   * Find React components by their display name
+   * @param name - Display name of the component
+   * @param all - Whether to return all matches or just the first (default: false)
+   * @param filter - Optional additional filter function
+   */
+  findComponent: (
+    name: string,
+    all?: boolean,
+    filter?: (exp: any) => boolean
+  ) => any | any[] | null
+
+  /**
+   * Commonly used modules exposed for plugins
+   */
+  commonModules: {
+    React: typeof import('react')
+    ReactDOM: typeof import('react-dom')
+    ReactDOMClient: typeof import('react-dom/client')
+  }
+}
 
 /**
  * Abstract base class that all Taut plugins must extend.

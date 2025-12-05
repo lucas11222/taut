@@ -1,13 +1,32 @@
 // Taut Client (the plugin manager)
 // Runs in the browser page context
-// Loads and manages plugins via TautAPI
+// Loads and manages plugins via TautBridge
 
+import { findExport, findByProps, findComponent, commonModules } from './webpack'
+import type { TautBridge } from '../preload/preload'
 import type {
   TautPlugin,
-  TautAPI,
   TautPluginConstructor,
   TautPluginConfig,
+  TautAPI as TautAPIType,
 } from '../Plugin'
+
+const global = window as any
+const TautBridge: TautBridge = global.TautBridge
+if (!TautBridge) {
+  throw new Error('[Taut] TautBridge is not available in the renderer context')
+}
+
+export const TautAPI: TautAPIType = {
+  startPlugins: TautBridge.startPlugins,
+  onConfigChange: TautBridge.onConfigChange,
+  findExport,
+  findByProps,
+  findComponent,
+  commonModules: commonModules,
+}
+global.TautAPI = TautAPI
+
 
 /**
  * Plugin Manager - loads and manages Taut plugins
@@ -21,15 +40,6 @@ class PluginManager {
       config: TautPluginConfig
     }
   >()
-  api: TautAPI
-
-  constructor() {
-    // @ts-ignore
-    if (typeof window.TautAPI === 'undefined') {
-      throw new Error('[Taut] TautAPI is not available in the renderer context')
-    }
-    this.api = (window as any).TautAPI as TautAPI
-  }
 
   /**
    * Initialize the plugin manager - load and start all plugins
@@ -37,10 +47,10 @@ class PluginManager {
   async init() {
     console.log('[Taut] PluginManager initializing...')
 
-    this.api.onConfigChange((name, newConfig) => {
+    TautAPI.onConfigChange((name, newConfig) => {
       this.updatePluginConfig(name, newConfig)
     })
-    await this.api.startPlugins()
+    await TautAPI.startPlugins()
   }
 
   /**
@@ -67,7 +77,7 @@ class PluginManager {
     }
 
     try {
-      const instance = new PluginClass(this.api, config)
+      const instance = new PluginClass(TautAPI, config)
       this.plugins.set(name, { PluginClass, instance, config })
       if (config.enabled) {
         try {
@@ -104,7 +114,7 @@ class PluginManager {
       }
     }
 
-    const instance = new existing.PluginClass(this.api, newConfig)
+    const instance = new existing.PluginClass(TautAPI, newConfig)
     this.plugins.set(name, {
       PluginClass: existing.PluginClass,
       instance,
@@ -131,6 +141,5 @@ class PluginManager {
 
 // Create and initialize the plugin manager
 const pluginManager = new PluginManager()
-// @ts-ignore
-window.__tautPluginManager = pluginManager
+global.__tautPluginManager = pluginManager
 pluginManager.init()

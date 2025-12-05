@@ -1,13 +1,13 @@
 // Taut Preload Script (The Bridge)
 // Injected into the renderer process as a custom preload script by main.cjs
-// Exposes TautAPI to the renderer and loads the original Slack preload
+// Exposes TautBridge to the renderer and loads the original Slack preload
 
 const { contextBridge, ipcRenderer } = require('electron')
 /** @import { TautPluginConfig } from '../Plugin' */
 
 console.log('[Taut] Preload loaded')
 
-/** @typedef {typeof TautAPI} TautAPI */
+/** @typedef {typeof TautBridge} TautBridge */
 
 // user.css style element management
 const TAUT_USER_CSS_ID = 'taut-user-css-style'
@@ -71,8 +71,8 @@ ipcRenderer.on('taut:user-css-changed', (event, css) => {
   updateUserCss(css)
 })
 
-// Expose TautAPI to the renderer world
-const TautAPI = {
+// Expose TautBridge to the renderer world
+const TautBridge = {
   /**
    * Ask the main process to start sending plugins and configs
    * @returns {Promise<void>}
@@ -97,7 +97,7 @@ const TautAPI = {
     )
   },
 }
-contextBridge.exposeInMainWorld('TautAPI', TautAPI)
+contextBridge.exposeInMainWorld('TautBridge', TautBridge)
 
 // Request and eval the original Slack preload script from the main process
 ;(async () => {
