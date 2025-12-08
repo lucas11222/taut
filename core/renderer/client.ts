@@ -6,26 +6,33 @@ import {
   findExport,
   findByProps,
   findComponent,
+  patchComponent,
+  unpatchComponent,
   commonModules,
 } from './webpack'
 import { addSettingsTab } from './settings'
+import { setStyle, removeStyle } from './css'
 import { TautBridge, TypedEventTarget } from './helpers'
 
 import type {
   TautPlugin,
   TautPluginConstructor,
   TautPluginConfig,
-  TautAPI as TautAPIType,
 } from '../Plugin'
 
 const global = window as any
 
-export const TautAPI: TautAPIType = {
+export const TautAPI = {
+  setStyle,
+  removeStyle,
   findExport,
   findByProps,
   findComponent,
-  commonModules: commonModules,
+  patchComponent,
+  unpatchComponent,
+  commonModules,
 }
+export type TautAPI = typeof TautAPI
 global.TautAPI = TautAPI
 
 /**

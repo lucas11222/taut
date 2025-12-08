@@ -2,7 +2,7 @@
 // Adds a "Taut" tab to Slack's Preferences dialog
 // Shows installed plugins, config info, and credits
 
-import { findComponent, patchComponent } from './webpack'
+import { findComponent, patchComponent, type reactElement } from './webpack'
 import { TautBridge } from './helpers'
 import type { PluginInfo, PluginManager } from './client'
 
@@ -11,7 +11,7 @@ let PATHS: Awaited<ReturnType<typeof TautBridge.getConfigPaths>> | null = null
   PATHS = await TautBridge.getConfigPaths()
 })()
 
-const Tabs = findComponent('Tabs') as React.ComponentType<{
+const Tabs = findComponent<{
   tabs: {
     'label': React.ReactElement
     'content': React.ReactElement
@@ -24,10 +24,10 @@ const Tabs = findComponent('Tabs') as React.ComponentType<{
   }[]
   onTabChange?: (id: string, e: React.UIEvent) => void
   currentTabId?: string
-}>
-const MrkdwnElement = findComponent('MrkdwnElement') as React.ComponentType<{
+}>('Tabs')
+const MrkdwnElement = findComponent<{
   text: string
-}>
+}>('MrkdwnElement')
 
 export function addSettingsTab(pluginManager: PluginManager) {
   function TautSettings() {
@@ -95,7 +95,7 @@ export function addSettingsTab(pluginManager: PluginManager) {
     )
   }
 
-  patchComponent(Tabs, (props) => {
+  patchComponent(Tabs, (OriginalTabs) => (props) => {
     const [isTautSelected, setIsTautSelected] = React.useState(false)
 
     const tabs = [...props.tabs]
@@ -122,8 +122,7 @@ export function addSettingsTab(pluginManager: PluginManager) {
     const activeTabId = isTautSelected ? 'taut' : props.currentTabId
 
     return (
-      <Tabs
-        __original
+      <OriginalTabs
         {...props}
         tabs={tabs}
         currentTabId={activeTabId}

@@ -30,6 +30,13 @@ export function allExports() {
 
 type filter = (exp: any) => boolean
 
+/**
+ * Find Webpack exports matching a filter function
+ * @param filter - Filter function to match exports
+ * @param all - Whether to return all matches or just the first (default: false)
+ */
+export function findExport(filter: filter, all?: false): any | null
+export function findExport(filter: filter, all: true): any[]
 export function findExport(filter: filter, all = false) {
   const exports = allExports()
   const results = new Set<any>()
@@ -55,17 +62,52 @@ export function findExport(filter: filter, all = false) {
   return all ? [...results] : null
 }
 
+/**
+ * Find Webpack exports by their properties
+ * @param props - Array of property names to match
+ * @param all - Whether to return all matches or just the first (default: false)
+ */
+export function findByProps(props: string[], all?: false): any | null
+export function findByProps(props: string[], all: true): any[]
 export function findByProps(props: string[], all = false) {
-  return findExport((exp) => props.every((p) => p in exp), all)
+  const func = (exp: any) => props.every((prop) => prop in exp)
+
+  if (all) {
+    return findExport(func, true)
+  } else {
+    return findExport(func)
+  }
 }
+
+/**
+ * Find React components by their display name
+ * @param name - Display name of the component
+ * @param all - Whether to return all matches or just the first (default: false)
+ * @param filter - Optional additional filter function
+ */
+
+export function findComponent<P extends {}>(
+  name: string,
+  all?: false,
+  filter?: filter
+): React.ComponentType<P>
+export function findComponent<P extends {}>(
+  name: string,
+  all: true,
+  filter?: filter
+): React.ComponentType<P>[]
 export function findComponent(name: string, all = false, filter?: filter) {
-  return findExport(
-    (exp) =>
-      typeof exp === 'function' &&
-      exp.displayName === name &&
-      (!filter || filter(exp)),
-    all
-  )
+  const func = (exp: any) =>
+    getComponentName(exp) === name && (filter ? filter(exp) : true)
+
+  if (all) {
+    const results = findExport(func, true)
+    return results.map(getOriginalComponent)
+  } else {
+    const result = findExport(func)
+    if (!result) throw new Error(`[Taut] Could not find component: ${name}`)
+    return getOriginalComponent(result)
+  }
 }
 
 export const React = findByProps([
@@ -83,51 +125,6 @@ export const ReactDOMClient = findByProps([
   'createRoot',
   'hydrateRoot',
 ]) as typeof import('react-dom/client')
-
-type reactElement<P = any> = React.ComponentType<P> | string
-function getElementName(element: reactElement): string {
-  if (typeof element === 'string') return element
-  if ('displayName' in element && element.displayName)
-    return element.displayName
-  if ('name' in element && element.name) return element.name
-  return 'Component'
-}
-
-const elementReplacements = new Map<reactElement, reactElement>()
-
-React.createElement = new Proxy(React.createElement, {
-  apply(target, thisArg, [type, props, ...children]: any[]) {
-    const replacementElement = elementReplacements.get(type)
-    const __original = props && props['__original']
-    if (__original) {
-      delete props['__original']
-    }
-    if (replacementElement && !__original) {
-      // console.log(
-      //   `[Taut] React.createElement: Replacing element ${getElementName(type)} with ${getElementName(replacementElement)}`
-      // )
-      return Reflect.apply(target, thisArg, [
-        replacementElement,
-        props,
-        ...children,
-      ])
-    }
-
-    return Reflect.apply(target, thisArg, [type, props, ...children])
-  },
-})
-declare global {
-  namespace React {
-    interface Attributes {
-      /**
-       * [Taut] Marks this element to use the original component, bypassing any patches.
-       *
-       * You must use this when rendering the original component inside a patched component to avoid infinite loops.
-       */
-      __original?: true
-    }
-  }
-}
 
 export function getRootFiber() {
   const container = document.querySelector('.p-client_container')
@@ -166,45 +163,203 @@ export function dirtyMemoizationCache() {
   poison(rootFiber)
 }
 
-export function patchComponent<P = any>(
-  original: reactElement<P>,
-  replacement: reactElement<P> | null
-) {
-  if (typeof replacement === 'function' && !('displayName' in replacement)) {
-    // Shows up as the original element name with a [Patched] tag in React DevTools
-    replacement.displayName = `Patched(${getElementName(original)})`
+export type reactElement<P = any> = React.ComponentType<P> | string
+function getComponentName(component: any): string | null {
+  if (!component) return null
+
+  if (typeof component === 'object') {
+    if (component.$$typeof === Symbol.for('react.memo')) {
+      return getComponentName(component.type)
+    }
+    if (component.$$typeof === Symbol.for('react.forward_ref')) {
+      return (
+        component.displayName ||
+        component.render?.displayName ||
+        component.render?.name ||
+        null
+      )
+    }
   }
-  if (replacement === null) {
-    elementReplacements.delete(original)
-    console.log(
-      `[Taut] patchComponent: Unpatched component ${getElementName(original)}`,
-      elementReplacements
-    )
-  } else {
-    elementReplacements.set(original, replacement)
-    console.log(
-      `[Taut] patchComponent: Patched component ${getElementName(original)} with ${getElementName(replacement)}`,
-      elementReplacements
-    )
+
+  if (typeof component === 'function') {
+    return component.displayName || null
   }
-  dirtyMemoizationCache()
+
+  return null
+}
+function getElementName(element: reactElement): string {
+  if (typeof element === 'string') return element
+  const name = getComponentName(element)
+  if (name) return name
+  return 'Component'
+}
+// Get the original component if the original may be a memo or forwardRef
+function getOriginalComponent(component: any): any {
+  if (!component) return component
+
+  if (typeof component === 'object') {
+    if (component.$$typeof === Symbol.for('react.memo')) {
+      return getOriginalComponent(component.type)
+    }
+    if (component.$$typeof === Symbol.for('react.forward_ref')) {
+      return getOriginalComponent(component.render)
+    }
+  }
+
+  return component
 }
 
-// global.test = () => {
-//   // patch BaseAvatar to make it inverted colors
-//   const BaseAvatar = findComponent('BaseAvatar')
-//   patchComponent(BaseAvatar, (props) => {
-//     return (
-//       <div style={{ filter: 'hue-rotate(180deg)' }}>
-//         <BaseAvatar {...props} __original />
-//       </div>
-//     )
-//   })
-// }
+export type elementReplacer<P = any> = (
+  OriginalElement: reactElement<P>
+) => reactElement<P>
 
+const elementReplacements = new Map<reactElement, elementReplacer[]>()
+const originalElementSymbol = Symbol('OriginalElement')
+
+type originalElementObject = {
+  symbol: typeof originalElementSymbol
+  originalType: reactElement
+  displayName: string
+}
+function isOriginalElementObject(
+  element: any
+): element is originalElementObject {
+  return (
+    typeof element === 'object' &&
+    element !== null &&
+    element.symbol === originalElementSymbol &&
+    'originalType' in element
+  )
+}
+
+React.createElement = new Proxy(React.createElement, {
+  apply(
+    target: typeof React.createElement,
+    thisArg: any,
+    [type, props, ...children]: [
+      type: reactElement | originalElementObject,
+      props: any,
+      ...children: any[],
+    ]
+  ) {
+    const __original = props && props['__original']
+    if (__original) {
+      delete props['__original']
+    }
+
+    // This is a special object that is equivalent to the original type without replacement
+    if (isOriginalElementObject(type)) {
+      const originalType = type['originalType']
+      return Reflect.apply(target, thisArg, [originalType, props, ...children])
+    }
+
+    if (!__original) {
+      const elementReplacers = elementReplacements.get(getOriginalComponent(type))
+      if (elementReplacers && elementReplacers.length > 0) {
+        // Can be used in place of the original type, but will not get replaced again
+        const originalElement = {
+          symbol: originalElementSymbol,
+          originalType: type,
+          displayName: getElementName(type),
+        } as unknown as reactElement
+
+        const replacedType = elementReplacers.reduce(
+          (currentType, replacer) => {
+            const replaced = replacer(currentType)
+            if (
+              typeof replaced === 'function' &&
+              !('displayName' in replaced)
+            ) {
+              // Shows up as the original element name with a [Patched] tag in React DevTools
+              replaced.displayName = `Patched(${getElementName(currentType)})`
+            }
+            return replaced
+          },
+          originalElement
+        )
+        return Reflect.apply(target, thisArg, [
+          replacedType,
+          props,
+          ...children,
+        ])
+      }
+    }
+
+    return Reflect.apply(target, thisArg, [type, props, ...children])
+  },
+})
+declare global {
+  namespace React {
+    interface Attributes {
+      /**
+       * [Taut] Marks this element to use the original component, bypassing any patches.
+       *
+       * You must use this when rendering the original component inside a patched component to avoid infinite loops.
+       */
+      __original?: true
+    }
+  }
+}
+
+/**
+ * Patch a React component to replace it with a custom implementation
+ * @param original - Original component to patch
+ * @param replacement - Function that takes the original component and returns the patched component
+ * @returns Unpatch function to restore the original component
+ */
+export function patchComponent<P = {}>(
+  original: reactElement<P>,
+  replacement: elementReplacer<P>
+): () => void {
+  let replacements = elementReplacements.get(original)
+  if (!replacements) {
+    replacements = []
+    elementReplacements.set(original, replacements)
+  }
+  replacements.push(replacement)
+
+  dirtyMemoizationCache()
+  console.log(
+    `[Taut] patchComponent: Patched component ${getElementName(original)}`,
+    elementReplacements
+  )
+  return () => {
+    unpatchComponent(replacement)
+  }
+}
+export function unpatchComponent(replacement: elementReplacer) {
+  for (const [original, replacements] of elementReplacements.entries()) {
+    const index = replacements.indexOf(replacement)
+    if (index !== -1) {
+      replacements.splice(index, 1)
+      if (replacements.length === 0) {
+        elementReplacements.delete(original)
+      }
+    }
+  }
+}
+
+global.test = () => {
+  // patch BaseAvatar to make it inverted colors
+  const BaseAvatar = findComponent('BaseAvatar')!
+  patchComponent(BaseAvatar, (OriginalElement) => (props) => {
+    return (
+      <div style={{ filter: 'hue-rotate(180deg)' }}>
+        <OriginalElement {...props} />
+      </div>
+    )
+  })
+}
+
+/**
+ * Commonly used modules exposed for plugins
+ */
 export const commonModules = {
+  /** npm:react */
   React,
+  /** npm:react-dom */
   ReactDOM,
+  /** npm:react-dom/client */
   ReactDOMClient,
 }
 

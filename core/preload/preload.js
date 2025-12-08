@@ -15,9 +15,6 @@ const TAUT_USER_CSS_ID = 'taut-user-css-style'
 /** @type {string} */
 let currentUserCss = ''
 
-/** @type {MutationObserver | null} */
-let userCssObserver = null
-
 /**
  * Get or create the user.css style element
  * @returns {HTMLStyleElement}
