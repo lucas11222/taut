@@ -1,6 +1,7 @@
 // Adds a little cat that chases your cursor around the screen
 // Based on oneko.js by @adryd325 (https://github.com/adryd325/oneko.js)
 
+import { time } from 'console'
 import { TautPlugin, type TautPluginConfig, type TautAPI } from '../core/Plugin'
 
 const NEKO_FILE =
@@ -92,7 +93,7 @@ export default class Oneko extends TautPlugin {
   name = 'Oneko'
   description =
     'A cute cat that chases your cursor around the screen, based on <https://github.com/adryd325/oneko.js|oneko.js>'
-  authors = '<https://github.com/adryd325|@adryd325>'
+  authors = '<https://github.com/adryd325|@adryd325>, <@U06UYA5GMB5>'
 
   config: OnekoConfig
 
@@ -127,7 +128,7 @@ export default class Oneko extends TautPlugin {
   }
 
   start(): void {
-    this.log('Starting Oneko...')
+    this.log('Started')
     this.createNekoElement()
     this.loadState()
     this.attachListeners()
@@ -139,8 +140,6 @@ export default class Oneko extends TautPlugin {
   }
 
   stop(): void {
-    this.log('Stopping Oneko...')
-
     // Cancel loop
     if (this.animationFrameId !== null) {
       window.cancelAnimationFrame(this.animationFrameId)
@@ -159,6 +158,8 @@ export default class Oneko extends TautPlugin {
       this.nekoEl.remove()
       this.nekoEl = null
     }
+
+    this.log('Stopped')
   }
 
   createNekoElement(): void {
@@ -242,7 +243,12 @@ export default class Oneko extends TautPlugin {
     }
 
     if (timestamp - this.lastFrameTimestamp > 100) {
-      this.lastFrameTimestamp += 100
+      if (timestamp - this.lastFrameTimestamp > 500) {
+        // If more than 0.5 seconds have passed, reset to avoid large jumps
+        this.lastFrameTimestamp = timestamp
+      } else {
+        this.lastFrameTimestamp += 100
+      }
       this.frame()
     }
 

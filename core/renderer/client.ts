@@ -2,14 +2,8 @@
 // Runs in the browser page context
 // Loads and manages plugins via TautBridge
 
-import {
-  findExport,
-  findByProps,
-  findComponent,
-  patchComponent,
-  unpatchComponent,
-  commonModules,
-} from './webpack'
+import { findExport, findByProps, commonModules } from './webpack'
+import { findComponent, patchComponent } from './react'
 import { addSettingsTab } from './settings'
 import { setStyle, removeStyle } from './css'
 import { TautBridge, TypedEventTarget } from './helpers'
@@ -20,7 +14,7 @@ import type {
   TautPluginConfig,
 } from '../Plugin'
 
-const global = window as any
+const global = globalThis as any
 
 export const TautAPI = {
   setStyle,
@@ -29,7 +23,6 @@ export const TautAPI = {
   findByProps,
   findComponent,
   patchComponent,
-  unpatchComponent,
   commonModules,
 }
 export type TautAPI = typeof TautAPI
@@ -161,10 +154,12 @@ export class PluginManager extends TypedEventTarget<{
 }
 export type PluginInfo = ReturnType<PluginManager['getPluginInfo']>
 
-// Create and initialize the plugin manager
-export const pluginManager = new PluginManager()
-global.__tautPluginManager = pluginManager
-pluginManager.init()
+export function initialize() {
+  // Create and initialize the plugin manager
+  const pluginManager = new PluginManager()
+  global.__tautPluginManager = pluginManager
+  pluginManager.init()
 
-// Add Taut settings tab
-addSettingsTab(pluginManager)
+  // Add Taut settings tab
+  addSettingsTab(pluginManager)
+}

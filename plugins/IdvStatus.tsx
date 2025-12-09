@@ -1,12 +1,7 @@
 // Shows a red squiggle on users who are not IDV verified
 // Author: Sahil (https://github.com/sadeshmukh)
 
-import {
-  TautPlugin,
-  type TautPluginConfig,
-  type TautAPI,
-  type elementReplacer,
-} from '../core/Plugin'
+import { TautPlugin, type TautPluginConfig, type TautAPI } from '../core/Plugin'
 
 const IDV_API_URL = 'https://identity.hackclub.com/api/external/check'
 const IDV_CACHE_KEY = 'slack_idv_status_v2'
@@ -28,79 +23,74 @@ export default class IdvStatus extends TautPlugin {
   private unpatchBaseMessageSender = () => {}
 
   start(): void {
-    this.log('Starting IDV Status...')
+    this.log('Starting')
 
     this.loadIdvCache()
 
-    const BaseMessageSender = this.api.findComponent<{
+    const instance = this
+
+    this.unpatchBaseMessageSender = this.api.patchComponent<{
       botId?: string
       userId?: string
       className?: string
-    }>('BaseMessageSender')
+    }>('BaseMessageSender', (OriginalBaseMessageSender) => (props) => {
+      const userId = props.userId
+      const isBotMessage = !!props.botId
 
-    const instance = this
+      const [idvStatus, setIdvStatus] = React.useState<IdvStatusType | null>(
+        () => {
+          if (!userId || isBotMessage) return null
+          if (!userId.startsWith('U') && !userId.startsWith('W')) return null
+          if (userId === 'USLACKBOT') return null
+          return idvCache[userId] || 'loading'
+        }
+      )
 
-    this.unpatchBaseMessageSender = this.api.patchComponent(
-      BaseMessageSender,
-      (OriginalBaseMessageSender) => (props) => {
-        const userId = props.userId
-        const isBotMessage = !!props.botId
+      React.useEffect(() => {
+        if (!userId || isBotMessage || idvStatus === null) return
+        if (!userId.startsWith('U') && !userId.startsWith('W')) return
+        if (userId === 'USLACKBOT') return
 
-        const [idvStatus, setIdvStatus] = React.useState<IdvStatusType | null>(
-          () => {
-            if (!userId || isBotMessage) return null
-            if (!userId.startsWith('U') && !userId.startsWith('W')) return null
-            if (userId === 'USLACKBOT') return null
-            return idvCache[userId] || 'loading'
+        // If we have a cached status that's not loading, we're done
+        if (idvCache[userId] && idvCache[userId] !== 'loading') {
+          if (idvStatus !== idvCache[userId]) {
+            setIdvStatus(idvCache[userId])
           }
-        )
+          return
+        }
 
-        React.useEffect(() => {
-          if (!userId || isBotMessage || idvStatus === null) return
-          if (!userId.startsWith('U') && !userId.startsWith('W')) return
-          if (userId === 'USLACKBOT') return
+        // Fetch the status
+        instance.fetchIdvStatus(userId).then((status) => {
+          setIdvStatus(status)
+        })
+      }, [userId, isBotMessage])
 
-          // If we have a cached status that's not loading, we're done
-          if (idvCache[userId] && idvCache[userId] !== 'loading') {
-            if (idvStatus !== idvCache[userId]) {
-              setIdvStatus(idvCache[userId])
-            }
-            return
+      const className =
+        idvStatus === 'unverified'
+          ? 'taut-idv-not-eligible'
+          : idvStatus === 'over_18'
+            ? 'taut-idv-over-18'
+            : ''
+
+      return (
+        <OriginalBaseMessageSender
+          {...props}
+          className={
+            props.className ? `${props.className} ${className}` : className
           }
-
-          // Fetch the status
-          instance.fetchIdvStatus(userId).then((status) => {
-            setIdvStatus(status)
-          })
-        }, [userId, isBotMessage])
-
-        const className =
-          idvStatus === 'unverified'
-            ? 'taut-idv-not-eligible'
-            : idvStatus === 'over_18'
-              ? 'taut-idv-over-18'
-              : ''
-
-        return (
-          <OriginalBaseMessageSender
-            {...props}
-            className={
-              props.className ? `${props.className} ${className}` : className
-            }
-          />
-        )
-      }
-    )
+        />
+      )
+    })
 
     this.api.setStyle(
       'idv-status',
       `
-        .taut-idv-not-eligible {
+        .taut-idv-not-eligible, .taut-idv-not-eligible .c-message__sender_button {
           text-decoration: underline wavy #e01e5a !important;
           text-decoration-thickness: 1px !important;
         }
 
-        .taut-idv-over-18 {
+        .taut-idv-over-18, .taut-idv-over-18 .c-message__sender_button {
           text-decoration: underline wavy #d97706 !important;
           text-decoration-thickness: 1px !important;
         }
@@ -114,13 +104,13 @@ export default class IdvStatus extends TautPlugin {
   }
 
   stop(): void {
-    this.log('Stopping IDV Status...')
-
     this.unpatchBaseMessageSender()
     this.api.removeStyle('idv-status')
 
     // @ts-ignore
     delete window.tautIdvClearCache
+
+    this.log('Stopped')
   }
 
   public clearCache(): void {

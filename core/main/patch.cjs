@@ -64,13 +64,13 @@ const proxiedBrowserWindow = new Proxy(electron.BrowserWindow, {
     // Inject client.js on page load
     instance.webContents.on('did-finish-load', async () => {
       try {
-        if (await fileExists(PATHS.clientJs)) {
+        if (await fileExists(PATHS.renderJs)) {
           await esbuildInitialized
-          const clientJs = await bundle(PATHS.clientJs)
+          const renderJs = await bundle(PATHS.renderJs)
           console.log('[Taut] Injecting client.js')
-          await instance.webContents.executeJavaScript(clientJs)
+          await instance.webContents.executeJavaScript(renderJs)
         } else {
-          console.error('[Taut] client.js not found at:', PATHS.clientJs)
+          console.error('[Taut] client.js not found at:', PATHS.renderJs)
         }
       } catch (err) {
         console.error('[Taut] Failed to inject client.js:', err)

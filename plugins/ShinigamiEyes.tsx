@@ -44,7 +44,7 @@ export default class ShinigamiEyes extends TautPlugin {
   name = 'Shinigami Eyes'
   description =
     'Displays Hackatime trust level indicators next to user names in Slack'
-  authors = '<@U07VC9705D4> and <@U046VA0KR8R>'
+  authors = '<@U07VC9705D4>, <@U046VA0KR8R>, <@U06UYA5GMB5>'
 
   config: ShinigamiConfig
 
@@ -59,7 +59,7 @@ export default class ShinigamiEyes extends TautPlugin {
   }
 
   start() {
-    this.log('Starting Shinigami Eyes...')
+    this.log('Starting')
 
     if (!this.config.apiToken) {
       this.log('Warning: No API token configured. Set apiToken in config.jsonc')
@@ -68,16 +68,6 @@ export default class ShinigamiEyes extends TautPlugin {
 
     this.initializeTrustLevels()
 
-    // Find the Message component
-    const BaseMessageSender = this.api.findComponent<{
-      botId?: string
-      userId?: string
-      className?: string
-    }>('BaseMessageSender')
-    const MemberProfileHoverCard = this.api.findComponent<{
-      memberId: string
-      header?: React.ReactNode
-    }>('MemberProfileHoverCard')
     const MrkdwnElement = this.api.findComponent<{
       text: string
     }>('MrkdwnElement')
@@ -87,50 +77,54 @@ export default class ShinigamiEyes extends TautPlugin {
     // Only patch message sender to add trust level emoji if enabled in config
     if (this.config.nameEmojis !== false) {
       // Patch Message component to add trust level CSS classes
-      this.unpatchBaseMessageSender = this.api.patchComponent(
-        BaseMessageSender,
-        (OriginalBaseMessageSender) => (props) => {
-          const userId = props.userId
-          const isBotMessage = !!props.botId
+      this.unpatchBaseMessageSender = this.api.patchComponent<{
+        botId?: string
+        userId?: string
+        className?: string
+      }>('BaseMessageSender', (OriginalBaseMessageSender) => (props) => {
+        const userId = props.userId
+        const isBotMessage = !!props.botId
 
-          const [trustLevel, setTrustLevel] = React.useState<trustLevel | null>(
-            () => {
-              if (!userId || isBotMessage) return null
-              return instance.trustLevels[userId] ?? null
+        const [trustLevel, setTrustLevel] = React.useState<trustLevel | null>(
+          () => {
+            if (!userId || isBotMessage) return null
+            return instance.trustLevels[userId] ?? null
+          }
+        )
+
+        React.useEffect(() => {
+          if (!userId || isBotMessage) return
+
+          // If we have a cached status, use it
+          if (instance.trustLevels[userId] !== undefined) {
+            if (trustLevel !== instance.trustLevels[userId]) {
+              setTrustLevel(instance.trustLevels[userId])
             }
-          )
+          }
+        }, [userId, isBotMessage])
 
-          React.useEffect(() => {
-            if (!userId || isBotMessage) return
+        const className =
+          trustLevel !== null ? `taut-trust-level-${trustLevel}` : ''
 
-            // If we have a cached status, use it
-            if (instance.trustLevels[userId] !== undefined) {
-              if (trustLevel !== instance.trustLevels[userId]) {
-                setTrustLevel(instance.trustLevels[userId])
-              }
+        return (
+          <OriginalBaseMessageSender
+            {...props}
+            className={
+              props.className ? `${props.className} ${className}` : className
             }
-          }, [userId, isBotMessage])
-
-          const className =
-            trustLevel !== null ? `taut-trust-level-${trustLevel}` : ''
-
-          return (
-            <OriginalBaseMessageSender
-              {...props}
-              className={
-                props.className ? `${props.className} ${className}` : className
-              }
-            />
-          )
-        }
-      )
+          />
+        )
+      })
     } else {
       this.unpatchBaseMessageSender = () => {}
     }
 
     // Patch MemberProfileHoverCard to show trust level and audit logs
-    this.unpatchMemberProfileHoverCard = this.api.patchComponent(
-      MemberProfileHoverCard,
+    this.unpatchMemberProfileHoverCard = this.api.patchComponent<{
+      memberId: string
+      header?: React.ReactNode
+    }>(
+      'MemberProfileHoverCard',
       (OriginalMemberProfileHoverCard) => (props) => {
         const memberId = props.memberId
         const trustLevel = instance.trustLevels[memberId]
@@ -291,11 +285,11 @@ export default class ShinigamiEyes extends TautPlugin {
   }
 
   stop() {
-    this.log('Stopping...')
-
     this.unpatchBaseMessageSender()
     this.unpatchMemberProfileHoverCard()
     this.api.removeStyle('shinigami-eyes')
+
+    this.log('Stopped')
   }
 
   // Cache Management

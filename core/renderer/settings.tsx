@@ -2,7 +2,7 @@
 // Adds a "Taut" tab to Slack's Preferences dialog
 // Shows installed plugins, config info, and credits
 
-import { findComponent, patchComponent, type reactElement } from './webpack'
+import { findComponent, patchComponent } from './react'
 import { TautBridge } from './helpers'
 import type { PluginInfo, PluginManager } from './client'
 
@@ -11,20 +11,6 @@ let PATHS: Awaited<ReturnType<typeof TautBridge.getConfigPaths>> | null = null
   PATHS = await TautBridge.getConfigPaths()
 })()
 
-const Tabs = findComponent<{
-  tabs: {
-    'label': React.ReactElement
-    'content': React.ReactElement
-    'svgIcon': {
-      name: string
-    }
-    'id'?: string
-    'aria-labelledby'?: string
-    'aria-label'?: string
-  }[]
-  onTabChange?: (id: string, e: React.UIEvent) => void
-  currentTabId?: string
-}>('Tabs')
 const MrkdwnElement = findComponent<{
   text: string
 }>('MrkdwnElement')
@@ -32,6 +18,8 @@ const MrkdwnElement = findComponent<{
 export function addSettingsTab(pluginManager: PluginManager) {
   function TautSettings() {
     const configDir = PATHS ? PATHS.tautDir : '?'
+    const configFile = PATHS ? PATHS.config : '?'
+
     const [pluginInfo, setPluginInfo] = React.useState(() =>
       pluginManager.getPluginInfo()
     )
@@ -89,13 +77,29 @@ export function addSettingsTab(pluginManager: PluginManager) {
             </li>
           ))}
         </ul>
+        <MrkdwnElement
+          text={`To change settings, edit \`${configFile}\` and save to apply. Editing config here will be available in a future update.`}
+        />
         <hr />
         <MrkdwnElement text="Created by <@U06UYA5GMB5>, <https://github.com/jeremy46231/taut#credits|credits>" />
       </div>
     )
   }
 
-  patchComponent(Tabs, (OriginalTabs) => (props) => {
+  patchComponent<{
+    tabs: {
+      'label': React.ReactElement
+      'content': React.ReactElement
+      'svgIcon': {
+        name: string
+      }
+      'id'?: string
+      'aria-labelledby'?: string
+      'aria-label'?: string
+    }[]
+    onTabChange?: (id: string, e: React.UIEvent) => void
+    currentTabId?: string
+  }>('Tabs', (OriginalTabs) => (props) => {
     const [isTautSelected, setIsTautSelected] = React.useState(false)
 
     const tabs = [...props.tabs]

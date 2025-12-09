@@ -66,7 +66,7 @@ const PATHS = {
   userCss: path.join(TAUT_DIR, 'user.css'),
   esbuildWasm: path.join(TAUT_DIR, 'core', 'main', 'deps', 'esbuild.wasm'),
   preloadJs: path.join(TAUT_DIR, 'core', 'preload', 'preload.js'),
-  clientJs: path.join(TAUT_DIR, 'core', 'renderer', 'client.ts'),
+  renderJs: path.join(TAUT_DIR, 'core', 'renderer', 'main.ts'),
 }
 
 const esbuildInitialized = initEsbuild(PATHS.esbuildWasm)

@@ -6,7 +6,7 @@ import type { TautPluginConfig } from './main/plugins.cjs'
 export type { TautPluginConfig } from './main/plugins.cjs'
 import type { TautAPI } from './renderer/client'
 export type { TautAPI } from './renderer/client'
-export type { reactElement, elementReplacer } from './renderer/webpack'
+export type { ComponentType, componentReplacer } from './renderer/react'
 
 /**
  * Abstract base class that all Taut plugins must extend.
@@ -47,7 +47,8 @@ export abstract class TautPlugin {
    * Log a message with the plugin's name prefix.
    * @param args - Something to log
    */
-  protected log(...args: any[]): void {
+  protected log = this._log.bind(this)
+  protected _log(...args: any[]) {
     console.log(`[Taut] [${this.constructor.name}]`, ...args)
   }
 }

@@ -3,6 +3,12 @@
   // Edit this file to configure your plugins
 
   "plugins": {
+    "PrivateChannel": {
+      "enabled": true
+    },
+    "InvisibleForward": {
+      "enabled": false
+    },
     // Show a red squiggle on users who are not IDV verified
     "IdvStatus": {
       "enabled": false
