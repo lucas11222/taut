@@ -4,7 +4,7 @@
 const { promises: fs } = require('fs')
 const path = require('path')
 
-/** @type {typeof import('./deps.js')} */
+/** @type {typeof import('./deps')} */
 const deps = require('./deps/deps.bundle.js')
 const { initEsbuild } = deps
 
@@ -58,7 +58,7 @@ async function fileExists(filePath) {
 
 const TAUT_DIR = path.join(__dirname, '..', '..')
 
-const PATHS = {
+const paths = {
   tautDir: TAUT_DIR,
   plugins: path.join(TAUT_DIR, 'plugins'),
   userPlugins: path.join(TAUT_DIR, 'user-plugins'),
@@ -67,6 +67,43 @@ const PATHS = {
   esbuildWasm: path.join(TAUT_DIR, 'core', 'main', 'deps', 'esbuild.wasm'),
   preloadJs: path.join(TAUT_DIR, 'core', 'preload', 'preload.js'),
   renderJs: path.join(TAUT_DIR, 'core', 'renderer', 'main.ts'),
+  depsCss: path.join(TAUT_DIR, 'core', 'renderer', 'deps', 'deps.bundle.css'),
+}
+
+// calculate a display path relative to ~ or %appdata%
+const displayPathPrefix =
+  process.platform === 'win32'
+    ? process.env.APPDATA || null
+    : process.env.HOME || null
+const displayPathReplacement = process.platform === 'win32' ? '%appdata%' : '~'
+
+/** @param {string} fullPath */
+const displayPath = (fullPath) => {
+  if (!displayPathPrefix) return fullPath
+  return path.join(
+    displayPathReplacement,
+    path.relative(displayPathPrefix, fullPath)
+  )
+}
+
+/**
+ * Build a paths object with display-friendly paths
+ * @param {typeof paths} sourcePaths
+ * @returns {typeof paths}
+ */
+function buildDisplayPaths(sourcePaths) {
+  /** @type {Record<string, string>} */
+  const result = {}
+  for (const key of Object.keys(sourcePaths)) {
+    // @ts-ignore - index access is safe for this mapping
+    result[key] = displayPath(sourcePaths[key])
+  }
+  return /** @type {typeof paths} */ (result)
+}
+
+const PATHS = {
+  ...paths,
+  display: buildDisplayPaths(paths),
 }
 
 const esbuildInitialized = initEsbuild(PATHS.esbuildWasm)

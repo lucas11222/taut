@@ -4,6 +4,7 @@
 
 const { contextBridge, ipcRenderer } = require('electron')
 /** @import { TautPluginConfig } from '../Plugin' */
+/** @typedef { import('../main/helpers.cjs')['PATHS'] } PATHS */
 
 console.log('[Taut] Preload loaded')
 
@@ -68,6 +69,9 @@ ipcRenderer.on('taut:user-css-changed', (event, css) => {
   updateUserCss(css)
 })
 
+/** @type {PATHS | null} */
+let PATHS = null
+
 // Expose TautBridge to the renderer world
 const TautBridge = {
   /**
@@ -95,10 +99,34 @@ const TautBridge = {
   },
 
   /**
-   * Get paths to the config directory and files within it
-   * @returns {Promise<import('../main/helpers.cjs')['PATHS']>} - The paths object
+   * Subscribe to config text changes
+   * @param {(text: string) => void} callback
+   * @returns {() => void} Cleanup function
    */
-  getConfigPaths: () => ipcRenderer.invoke('taut:get-config-dir'),
+  onConfigTextChange: (callback) => {
+    /** @type {(event: Electron.IpcRendererEvent, text: string) => void} */
+    const handler = (event, text) => callback(text)
+    ipcRenderer.on('taut:config-text-changed', handler)
+    return () => ipcRenderer.removeListener('taut:config-text-changed', handler)
+  },
+
+  /**
+   * Subscribe to user.css changes
+   * @param {(css: string) => void} callback
+   * @returns {() => void} Cleanup function
+   */
+  onUserCssChange: (callback) => {
+    /** @type {(event: Electron.IpcRendererEvent, css: string) => void} */
+    const handler = (event, css) => callback(css)
+    ipcRenderer.on('taut:user-css-changed', handler)
+    return () => ipcRenderer.removeListener('taut:user-css-changed', handler)
+  },
+
+  /**
+   * Get paths to the config directory and files within it
+   * @type {() => (PATHS | null)} - The paths object
+   */
+  PATHS: () => PATHS,
 
   /**
    * Set whether a plugin is enabled (persists to config file)
@@ -108,6 +136,32 @@ const TautBridge = {
    */
   setPluginEnabled: (pluginName, enabled) =>
     ipcRenderer.invoke('taut:set-plugin-enabled', pluginName, enabled),
+
+  /**
+   * Read config.jsonc as raw text
+   * @returns {Promise<string>} - The config file contents
+   */
+  readConfigText: () => ipcRenderer.invoke('taut:read-config-text'),
+
+  /**
+   * Write config.jsonc (raw text)
+   * @param {string} text - The new config contents
+   * @returns {Promise<boolean>} - True if successful
+   */
+  writeConfigText: (text) => ipcRenderer.invoke('taut:write-config-text', text),
+
+  /**
+   * Read user.css as raw text
+   * @returns {Promise<string>} - The user.css contents
+   */
+  readUserCss: () => ipcRenderer.invoke('taut:read-user-css'),
+
+  /**
+   * Write user.css (raw text)
+   * @param {string} text - The new CSS contents
+   * @returns {Promise<boolean>} - True if successful
+   */
+  writeUserCss: (text) => ipcRenderer.invoke('taut:write-user-css', text),
 }
 contextBridge.exposeInMainWorld('TautBridge', TautBridge)
 
@@ -123,5 +177,15 @@ contextBridge.exposeInMainWorld('TautBridge', TautBridge)
     }
   } catch (err) {
     console.error('[Taut] Failed to load original preload:', err)
+  }
+})()
+
+// Fetch the PATHS from main process
+;(async () => {
+  try {
+    const paths = await ipcRenderer.invoke('taut:get-paths')
+    PATHS = paths
+  } catch (err) {
+    console.error('[Taut] Failed to get PATHS from main process:', err)
   }
 })()

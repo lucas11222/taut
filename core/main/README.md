@@ -30,4 +30,4 @@ Environment: Electron main process (Node.js + Electron APIs), CommonJS
 IPC Handlers:
 
 - `taut:start-plugins`: Triggers plugin loading and returns plugin list
-- `taut:get-config-dir`: Returns the `PATHS` object with config directory info
+- `taut:get-paths`: Returns the `PATHS` object with config directory info

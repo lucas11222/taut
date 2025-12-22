@@ -8,7 +8,7 @@ const electron = require('electron')
 
 const { PATHS, fileExists, esbuildInitialized } = require('./helpers.cjs')
 
-/** @type {typeof import('./deps.js')} */
+/** @type {typeof import('./deps')} */
 const deps = require('./deps/deps.bundle.js')
 const { bundle, installReactDevtools } = deps
 

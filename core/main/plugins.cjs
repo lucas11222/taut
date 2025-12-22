@@ -13,7 +13,7 @@ const {
   esbuildInitialized,
 } = require('./helpers.cjs')
 
-/** @type {typeof import('./deps.js')} */
+/** @type {typeof import('./deps')} */
 const deps = require('./deps/deps.bundle.js')
 const { bundle, parseJSONC, modifyJSONC } = deps
 
@@ -101,7 +101,19 @@ function watchConfig() {
   console.log('[Taut] Watching config file:', PATHS.config)
   watchFile(PATHS.config, async () => {
     console.log('[Taut] Config file changed')
-    const newConfig = await readConfig()
+
+    // Read raw content for the editor
+    let rawConfig = ''
+    try {
+      rawConfig = await fs.readFile(PATHS.config, 'utf8')
+      if (BROWSER.current) {
+        BROWSER.current.webContents.send('taut:config-text-changed', rawConfig)
+      }
+    } catch (err) {
+      console.error('[Taut] Failed to read config text:', err)
+    }
+
+    const newConfig = parseJSONC(rawConfig) || { plugins: {} }
     const oldPluginConfigs = config.plugins || {}
     const newPluginConfigs = newConfig.plugins || {}
 
@@ -333,7 +345,7 @@ electron.ipcMain.handle('taut:start-plugins', async () => {
   }
 })
 
-electron.ipcMain.handle('taut:get-config-dir', async () => {
+electron.ipcMain.handle('taut:get-paths', async () => {
   return PATHS
 })
 
@@ -359,7 +371,75 @@ electron.ipcMain.handle(
       console.log(`[Taut] Successfully updated config for plugin ${pluginName}`)
       return true
     } catch (err) {
-      console.error(`[Taut] Failed to update config for plugin ${pluginName}:`, err)
+      console.error(
+        `[Taut] Failed to update config for plugin ${pluginName}:`,
+        err
+      )
+      return false
+    }
+  }
+)
+
+// IPC Handler: Read config.jsonc as raw text
+electron.ipcMain.handle('taut:read-config-text', async () => {
+  try {
+    if (await fileExists(PATHS.config)) {
+      return await fs.readFile(PATHS.config, 'utf8')
+    }
+  } catch (err) {
+    console.error('[Taut] Failed to read config.jsonc:', err)
+  }
+  return ''
+})
+
+// IPC Handler: Write config.jsonc (raw text)
+electron.ipcMain.handle(
+  'taut:write-config-text',
+  /**
+   * @param {Electron.IpcMainInvokeEvent} _event
+   * @param {string} text
+   * @returns {Promise<boolean>}
+   */
+  async (_event, text) => {
+    try {
+      await fs.writeFile(PATHS.config, text, 'utf8')
+      console.log('[Taut] Updated config.jsonc via settings UI')
+      return true
+    } catch (err) {
+      console.error('[Taut] Failed to write config.jsonc:', err)
+      return false
+    }
+  }
+)
+
+// IPC Handler: Read user.css as raw text
+electron.ipcMain.handle('taut:read-user-css', async () => {
+  try {
+    if (await fileExists(PATHS.userCss)) {
+      return await fs.readFile(PATHS.userCss, 'utf8')
+    }
+  } catch (err) {
+    console.error('[Taut] Failed to read user.css:', err)
+  }
+  return ''
+})
+
+// IPC Handler: Write user.css (raw text)
+electron.ipcMain.handle(
+  'taut:write-user-css',
+  /**
+   * @param {Electron.IpcMainInvokeEvent} _event
+   * @param {string} text
+   * @returns {Promise<boolean>}
+   */
+  async (_event, text) => {
+    try {
+      await fs.mkdir(path.dirname(PATHS.userCss), { recursive: true })
+      await fs.writeFile(PATHS.userCss, text, 'utf8')
+      console.log('[Taut] Updated user.css via settings UI')
+      return true
+    } catch (err) {
+      console.error('[Taut] Failed to write user.css:', err)
       return false
     }
   }

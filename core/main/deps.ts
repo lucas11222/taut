@@ -23,6 +23,7 @@ const defaultLoader: Record<string, esbuild.Loader | undefined> = {
   '.jsx': 'jsx',
   '.json': 'json',
   '.txt': 'text',
+  '.css': 'text',
 }
 
 /**
@@ -62,38 +63,49 @@ export async function bundle(entryPath: string): Promise<string> {
         name: 'load-plugin',
         setup(build) {
           build.onResolve({ filter: /.*/ }, async (args) => {
-            const resolvedPath = await new Promise<string>((r, reject) => {
-              resolve(
-                args.path,
-                {
-                  basedir: args.resolveDir || (args.importer ? path.dirname(args.importer) : undefined),
-                  extensions: Object.keys(defaultLoader),
-                  includeCoreModules: false,
-                  preserveSymlinks: false,
-                },
-                (err, res) => {
-                  if (err) {
-                    return reject(err)
+            try {
+              const resolvedPath = await new Promise<string>((r, reject) => {
+                resolve(
+                  args.path,
+                  {
+                    basedir:
+                      args.resolveDir ||
+                      (args.importer ? path.dirname(args.importer) : undefined),
+                    extensions: Object.keys(defaultLoader),
+                    includeCoreModules: false,
+                    preserveSymlinks: false,
+                  },
+                  (err, res) => {
+                    if (err) return reject(err)
+                    if (!res)
+                      return reject(
+                        new Error(`Could not resolve module: ${args.path}`)
+                      )
+                    r(res)
                   }
-                  if (!res) {
-                    return reject(
-                      new Error(`Could not resolve module: ${args.path}`)
-                    )
-                  }
-                  r(res)
-                }
-              )
-            })
-            return { path: resolvedPath, namespace: 'local-fs' }
-          })
+                )
+              })
 
-          build.onLoad({ filter: /.*/, namespace: 'local-fs' }, async (args) => {
-            const contents = await fs.promises.readFile(args.path, 'utf-8')
-            return {
-              contents,
-              loader: defaultLoader[path.extname(args.path)] || 'text',
+              return { path: resolvedPath, namespace: 'local-fs' }
+            } catch (err) {
+              console.error(
+                `[Taut] Failed to resolve module "${args.path}" in esbuild onResolve hook:`,
+                err
+              )
+              return null // Log failure and let esbuild handle resolution (or report its own error)
             }
           })
+
+          build.onLoad(
+            { filter: /.*/, namespace: 'local-fs' },
+            async (args) => {
+              const contents = await fs.promises.readFile(args.path, 'utf-8')
+              return {
+                contents,
+                loader: defaultLoader[path.extname(args.path)] || 'text',
+              }
+            }
+          )
         },
       },
     ],

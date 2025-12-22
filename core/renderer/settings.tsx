@@ -6,14 +6,27 @@ import { findComponent, patchComponent } from './react'
 import { TautBridge } from './helpers'
 import type { PluginInfo, PluginManager } from './client'
 
-let PATHS: Awaited<ReturnType<typeof TautBridge.getConfigPaths>> | null = null
-;(async () => {
-  PATHS = await TautBridge.getConfigPaths()
-})()
+// @ts-ignore
+import * as deps from './deps/deps.bundle.js'
+const { monaco } = deps as typeof import('./deps')
+
+type Monaco = typeof monaco
+type MonacoEditorInstance = ReturnType<Monaco['editor']['create']>
 
 const MrkdwnElement = findComponent<{
   text: string
 }>('MrkdwnElement')
+type ButtonProps = {
+  type?: 'primary' | 'ghost' | 'outline' | 'danger'
+  size?: 'small' | 'medium' | 'large'
+  icon?: string
+  href?: string
+  htmlType?: 'button' | 'submit' | 'reset'
+}
+const Button = findComponent<
+  ButtonProps &
+    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonProps>
+>('Button')
 
 export function addSettingsTab(pluginManager: PluginManager) {
   patchComponent<{
@@ -46,6 +59,9 @@ export function addSettingsTab(pluginManager: PluginManager) {
     const handleTabChange = (id: string, e: React.UIEvent) => {
       if (id === 'taut') {
         setIsTautSelected(true)
+        // Some of the tabs have special behavior (e.g. "Appearance" removes dark overlay behind modal)
+        // so pretend Taut is a tab with no special behavior
+        if (props.onTabChange) props.onTabChange('advanced', e)
       } else {
         setIsTautSelected(false)
         // Pass original events back to the app
@@ -67,8 +83,7 @@ export function addSettingsTab(pluginManager: PluginManager) {
 }
 
 function TautSettings({ pluginManager }: { pluginManager: PluginManager }) {
-  const configDir = PATHS ? PATHS.tautDir : '?'
-  const configFile = PATHS ? PATHS.config : '?'
+  const configDir = TautBridge.PATHS()?.display.tautDir || '?'
 
   return (
     <div>
@@ -84,13 +99,206 @@ function TautSettings({ pluginManager }: { pluginManager: PluginManager }) {
       <MrkdwnElement text={`Config Directory: \`${configDir}\``} />
       <hr />
       <PluginList pluginManager={pluginManager} />
-      <MrkdwnElement
-        text={`To change settings, edit \`${configFile}\` and save to apply. Editing config here will be available in a future update.`}
-      />
+      <hr />
+      <div style={{ marginTop: '16px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+          Edit Configuration
+        </div>
+        <ConfigEditor />
+        <div style={{ height: '24px' }} />
+        <UserCssEditor />
+      </div>
       <hr />
       <MrkdwnElement text="Created by <@U06UYA5GMB5>, <https://github.com/jeremy46231/taut#credits|credits>" />
     </div>
   )
+}
+
+function ConfigEditor() {
+  const [text, setText] = React.useState<string>('')
+  const [dirty, setDirty] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  // Load initial content
+  React.useEffect(() => {
+    ;(async () => {
+      setText(await TautBridge.readConfigText())
+    })()
+  }, [])
+
+  // Listen for external changes
+  React.useEffect(() => {
+    return TautBridge.onConfigTextChange((newText) => {
+      if (!dirty) {
+        setText(newText)
+      }
+    })
+  }, [dirty])
+
+  const handleSave = async () => {
+    setSaving(true)
+    const ok = await TautBridge.writeConfigText(text)
+    if (ok) setDirty(false)
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <MrkdwnElement
+        text={`Editing \`${TautBridge.PATHS()?.display.config || '?'}\``}
+      />
+      <MonacoEditor
+        language="json"
+        value={text}
+        onChange={(newText) => {
+          setText(newText)
+          setDirty(true)
+        }}
+        style={{ height: '300px', marginTop: '8px' }}
+      />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '8px',
+        }}
+      >
+        <Button onClick={handleSave} disabled={!dirty || saving}>
+          {saving ? 'Saving...' : 'Save config.jsonc'}
+        </Button>
+        <div style={{ fontSize: '12px', color: 'var(--sk_foreground_low)' }}>
+          {dirty ? 'Unsaved changes' : 'Saved'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UserCssEditor() {
+  const [text, setText] = React.useState<string>('')
+  const [dirty, setDirty] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  // Load initial content
+  React.useEffect(() => {
+    ;(async () => {
+      setText(await TautBridge.readUserCss())
+    })()
+  }, [])
+
+  // Listen for external changes
+  React.useEffect(() => {
+    return TautBridge.onUserCssChange((newText) => {
+      if (!dirty) {
+        setText(newText)
+      }
+    })
+  }, [dirty])
+
+  const handleSave = async () => {
+    setSaving(true)
+    const ok = await TautBridge.writeUserCss(text)
+    if (ok) setDirty(false)
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <MrkdwnElement
+        text={`Editing \`${TautBridge.PATHS()?.display.userCss || '?'}\``}
+      />
+      <MonacoEditor
+        language="css"
+        value={text}
+        onChange={(newText) => {
+          setText(newText)
+          setDirty(true)
+        }}
+        style={{ height: '300px', marginTop: '8px' }}
+      />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '8px',
+        }}
+      >
+        <Button onClick={handleSave} disabled={!dirty || saving}>
+          {saving ? 'Saving...' : 'Save user.css'}
+        </Button>
+        <div style={{ fontSize: '12px', color: 'var(--sk_foreground_low)' }}>
+          {dirty ? 'Unsaved changes' : 'Saved'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface EditorProps {
+  language?: 'json' | 'css'
+  value: string
+  onChange: (value: string) => void
+}
+
+function MonacoEditor({
+  language,
+  value,
+  onChange,
+  ...props
+}: EditorProps &
+  Omit<React.HTMLAttributes<HTMLDivElement>, keyof EditorProps>) {
+  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const editorRef = React.useRef<MonacoEditorInstance | null>(null)
+  const valueRef = React.useRef(value)
+
+  React.useEffect(() => {
+    valueRef.current = value
+  }, [value])
+
+  React.useEffect(() => {
+    if (!monaco || !containerRef.current) return
+
+    const editor = monaco.editor.create(containerRef.current, {
+      value,
+      language,
+      automaticLayout: true,
+      theme: 'taut',
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      lineNumbers: 'on',
+      fontSize: 13,
+      tabSize: 2,
+    })
+
+    editorRef.current = editor
+
+    const sub = editor.onDidChangeModelContent(() => {
+      const text = editor.getValue()
+      valueRef.current = text
+      onChange(text)
+    })
+
+    return () => {
+      sub.dispose()
+      editor.dispose()
+      editorRef.current = null
+    }
+  }, [language])
+
+  React.useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    if (editor.getValue() !== value) {
+      const position = editor.getPosition()
+      editor.setValue(value)
+      if (position) editor.setPosition(position)
+    }
+  }, [value])
+
+  return <div ref={containerRef} {...props} />
 }
 
 function PluginList({ pluginManager }: { pluginManager: PluginManager }) {

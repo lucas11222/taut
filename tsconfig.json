@@ -20,9 +20,9 @@
 
     "jsx": "react",
 
-    "types": [],
+    "types": ["bun", "node"],
     "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.cjs"],
-  "exclude": ["node_modules", "core/main/deps/"]
+  "exclude": ["node_modules", "**/deps/", "tmp*"]
 }
