@@ -3,9 +3,9 @@
 import { TautPlugin, type TautPluginConfig, type TautAPI } from '../core/Plugin'
 
 export default class PrivateChannel extends TautPlugin {
-  name = 'Private Channel ID'
-  description = 'Shows the ID of private channels'
-  authors = '<@U06UYA5GMB5>'
+  static readonly pluginName = 'Private Channel ID'
+  static readonly description = 'Shows the ID of private channels'
+  static readonly authors = '<@U06UYA5GMB5>'
 
   unpatchBaseMrkdwnChannel = () => {}
 

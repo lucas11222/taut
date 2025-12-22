@@ -90,10 +90,10 @@ type OnekoConfig = TautPluginConfig & {
 }
 
 export default class Oneko extends TautPlugin {
-  name = 'Oneko'
-  description =
+  static readonly pluginName = 'Oneko'
+  static readonly description =
     'A cute cat that chases your cursor around the screen, based on <https://github.com/adryd325/oneko.js|oneko.js>'
-  authors = '<https://github.com/adryd325|@adryd325>, <@U06UYA5GMB5>'
+  static readonly authors = '<https://github.com/adryd325|@adryd325>, <@U06UYA5GMB5>'
 
   config: OnekoConfig
 

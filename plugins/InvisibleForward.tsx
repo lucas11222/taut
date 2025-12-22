@@ -3,10 +3,10 @@
 import { TautPlugin, type TautPluginConfig, type TautAPI } from '../core/Plugin'
 
 export default class InvisibleForward extends TautPlugin {
-  name = 'Invisible Forward'
-  description =
+  static readonly pluginName = 'Invisible Forward'
+  static readonly description =
     "Makes Slack links at the start of your messages invisible, like a forwarded message, based on <@U07FXPUDYDC><https://greasyfork.org/en/scripts/526439-forward-slack-messages-files-and-later-items-to-channels-and-threads-using-an-invisible-link|'s userscript>"
-  authors = '<@U06UYA5GMB5>'
+  static readonly authors = '<@U06UYA5GMB5>'
 
   unpatchMessagePaneInput = () => {}
   unpatchInputContainer = () => {}

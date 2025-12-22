@@ -69,7 +69,7 @@ async function bundleAndSendPlugin(filePath) {
 
   try {
     await esbuildInitialized
-    const iife = await bundle(filePath)
+    const iife = await bundle(filePath, true)
 
     const code = `globalThis.__tautPluginManager.loadPlugin(${JSON.stringify(
       name

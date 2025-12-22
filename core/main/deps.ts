@@ -43,9 +43,10 @@ export async function initEsbuild(wasmPath: string) {
  * Uses esbuild-wasm
  *
  * @param entryPath - path to the entry file (ts or js)
+ * @param useGlobalTautPlugin - if true, replaces imports of TautPlugin with globalThis.TautPlugin
  * @returns the generated IIFE expression
  */
-export async function bundle(entryPath: string): Promise<string> {
+export async function bundle(entryPath: string, useGlobalTautPlugin = false): Promise<string> {
   const absEntry = path.resolve(entryPath)
 
   const result = await esbuild.build({
@@ -99,6 +100,16 @@ export async function bundle(entryPath: string): Promise<string> {
           build.onLoad(
             { filter: /.*/, namespace: 'local-fs' },
             async (args) => {
+              if (useGlobalTautPlugin && args.path.endsWith('core/Plugin.ts')) {
+                return {
+                  contents: `
+                    export const TautPlugin = globalThis.TautPlugin
+                    export default TautPlugin
+                  `,
+                  loader: 'js',
+                }
+              }
+
               const contents = await fs.promises.readFile(args.path, 'utf-8')
               return {
                 contents,

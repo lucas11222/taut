@@ -40,10 +40,10 @@ type AuditLog = {
 }
 
 export default class ShinigamiEyes extends TautPlugin {
-  name = 'Shinigami Eyes'
-  description =
+  static readonly pluginName = 'Shinigami Eyes'
+  static readonly description =
     'Displays Hackatime trust level indicators next to user names in Slack'
-  authors = '<@U07VC9705D4>, <@U046VA0KR8R>, <@U06UYA5GMB5>'
+  static readonly authors = '<@U07VC9705D4>, <@U046VA0KR8R>, <@U06UYA5GMB5>'
 
   config: ShinigamiConfig
 

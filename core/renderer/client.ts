@@ -8,13 +8,14 @@ import { addSettingsTab } from './settings'
 import { setStyle, removeStyle } from './css'
 import { TautBridge, TypedEventTarget } from './helpers'
 
-import type {
+import {
   TautPlugin,
-  TautPluginConstructor,
-  TautPluginConfig,
+  type TautPluginConstructor,
+  type TautPluginConfig,
 } from '../Plugin'
 
 const global = globalThis as any
+global.TautPlugin = TautPlugin
 
 export const TautAPI = {
   setStyle,
@@ -38,7 +39,7 @@ export class PluginManager extends TypedEventTarget<{
     string,
     {
       PluginClass: TautPluginConstructor
-      instance: TautPlugin
+      instance: TautPlugin | null
       config: TautPluginConfig
     }
   >()
@@ -69,8 +70,16 @@ export class PluginManager extends TypedEventTarget<{
   ) {
     console.log(`[Taut] Loading plugin: ${name}`)
 
+    if (
+      typeof PluginClass !== 'function' ||
+      !(PluginClass.prototype instanceof TautPlugin)
+    ) {
+      console.error(`[Taut] Plugin class ${name} does not extend TautPlugin`)
+      return
+    }
+
     const existing = this.plugins.get(name)
-    if (existing && existing.config.enabled) {
+    if (existing && existing.instance) {
       try {
         existing.instance.stop()
       } catch (err) {
@@ -78,21 +87,19 @@ export class PluginManager extends TypedEventTarget<{
       }
     }
 
-    try {
-      const instance = new PluginClass(TautAPI, config)
-      this.plugins.set(name, { PluginClass, instance, config })
-      if (config.enabled) {
-        try {
-          instance.start()
-          console.log(`[Taut] Plugin ${name} started successfully`)
-        } catch (err) {
-          console.error(`[Taut] Error starting plugin ${name}:`, err)
-        }
+    let instance: TautPlugin | null = null
+
+    if (config.enabled) {
+      try {
+        instance = new PluginClass(TautAPI, config)
+        instance.start()
+        console.log(`[Taut] Plugin ${name} started successfully`)
+      } catch (err) {
+        console.error(`[Taut] Error starting plugin ${name}:`, err)
       }
-    } catch (err) {
-      console.error(`[Taut] Error loading plugin ${name}:`, err)
     }
 
+    this.plugins.set(name, { PluginClass, instance, config })
     this.emit('pluginInfoChanged', this.getPluginInfo())
   }
 
@@ -110,23 +117,20 @@ export class PluginManager extends TypedEventTarget<{
       return
     }
 
-    if (existing.config.enabled) {
+    if (existing.instance) {
       try {
         existing.instance.stop()
       } catch (err) {
         console.error(`[Taut] Error stopping plugin ${name}:`, err)
       }
+      existing.instance = null
     }
 
-    const instance = new existing.PluginClass(TautAPI, newConfig)
-    this.plugins.set(name, {
-      PluginClass: existing.PluginClass,
-      instance,
-      config: newConfig,
-    })
+    let instance: TautPlugin | null = null
 
     if (newConfig.enabled) {
       try {
+        instance = new existing.PluginClass(TautAPI, newConfig)
         instance.start()
         console.log(
           `[Taut] Plugin ${name} started successfully with new config`
@@ -139,6 +143,12 @@ export class PluginManager extends TypedEventTarget<{
       }
     }
 
+    this.plugins.set(name, {
+      PluginClass: existing.PluginClass,
+      instance,
+      config: newConfig,
+    })
+
     this.emit('pluginInfoChanged', this.getPluginInfo())
     console.log(`[Taut] Plugin ${name} config updated`)
   }
@@ -146,9 +156,9 @@ export class PluginManager extends TypedEventTarget<{
   getPluginInfo() {
     return [...this.plugins.entries()].map(([id, plugin]) => ({
       id,
-      name: plugin.instance.name,
-      description: plugin.instance.description,
-      authors: plugin.instance.authors,
+      name: plugin.PluginClass.pluginName,
+      description: plugin.PluginClass.description,
+      authors: plugin.PluginClass.authors,
       enabled: plugin.config.enabled,
     }))
   }
