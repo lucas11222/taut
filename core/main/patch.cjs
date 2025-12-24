@@ -61,24 +61,20 @@ const proxiedBrowserWindow = new Proxy(electron.BrowserWindow, {
     const instance = new target(options)
     BROWSER.current = instance
 
-    // Inject client.js on page load
-    instance.webContents.on('did-finish-load', async () => {
-      try {
-        if (await fileExists(PATHS.renderJs)) {
-          await esbuildInitialized
-          const renderJs = await bundle(PATHS.renderJs)
-          console.log('[Taut] Injecting client.js')
-          await instance.webContents.executeJavaScript(renderJs)
-        } else {
-          console.error('[Taut] client.js not found at:', PATHS.renderJs)
-        }
-      } catch (err) {
-        console.error('[Taut] Failed to inject client.js:', err)
-      }
-    })
-
     return instance
   },
+})
+
+electron.ipcMain.handle('taut:get-renderer-code', async () => {
+  try {
+    if (!(await fileExists(PATHS.renderJs)))
+      throw new Error('client.js not found')
+    await esbuildInitialized
+    const renderJs = await bundle(PATHS.renderJs)
+    return renderJs
+  } catch (err) {
+    throw new Error(`[Taut] Failed to get renderer code: ${err}`)
+  }
 })
 
 /** @typedef {(request: string, parent: Module, isMain: boolean) => object} ModuleLoadFunction */

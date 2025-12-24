@@ -49,7 +49,10 @@ export abstract class TautPlugin {
    */
   protected log = this._log.bind(this)
   protected _log(...args: any[]) {
-    console.log(`[Taut] [${(this.constructor as typeof TautPlugin).pluginName}]`, ...args)
+    console.log(
+      `[Taut] [${(this.constructor as typeof TautPlugin).pluginName}]`,
+      ...args
+    )
   }
 }
 

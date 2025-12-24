@@ -165,19 +165,62 @@ const TautBridge = {
 }
 contextBridge.exposeInMainWorld('TautBridge', TautBridge)
 
-// Request and eval the original Slack preload script from the main process
+document.open()
+document.write('')
+document.close()
+
+/** @type {Promise<string | null>} */
+const originalPreloadPromise = ipcRenderer.invoke('taut:get-original-preload')
+const originalHtmlPromise = fetch(location.href).then((res) => res.text())
+/** @type {Promise<string>} */
+const rendererCodePromise = ipcRenderer.invoke('taut:get-renderer-code')
+
 ;(async () => {
   try {
-    const originalPreload = await ipcRenderer.invoke(
-      'taut:get-original-preload'
-    )
+    const originalPreload = await originalPreloadPromise
     if (originalPreload) {
       console.log('[Taut] Evaluating original Slack preload script')
       eval(originalPreload)
     }
   } catch (err) {
-    console.error('[Taut] Failed to load original preload:', err)
+    throw new Error(
+      `[Taut] Failed to load original Slack preload script: ${err}`,
+      { cause: err }
+    )
   }
+
+  const originalHtml = await originalHtmlPromise
+  const parsedDocument = new DOMParser().parseFromString(
+    originalHtml,
+    'text/html'
+  )
+
+  // Remove CSP meta tag and reconstruct document
+  const metaCsp = parsedDocument.querySelector(
+    'meta[http-equiv="Content-Security-Policy"]'
+  )
+  if (metaCsp) {
+    console.log('[Taut] Found and removing CSP meta tag:', metaCsp)
+    metaCsp.replaceWith(
+      document.createComment(
+        ` CSP Meta Tag removed by Taut: ${metaCsp.outerHTML} `
+      )
+    )
+  }
+  // inject renderer code at the start of <head>
+  const head = parsedDocument.head
+  const rendererCode = await rendererCodePromise
+  const scriptEl = parsedDocument.createElement('script')
+  scriptEl.textContent = `// Taut injected renderer code\nBuilt from core/renderer/main.ts\n${rendererCode}`
+  head.insertBefore(scriptEl, head.firstChild)
+
+  const html = parsedDocument.documentElement.outerHTML
+
+  document.open()
+  document.write(html)
+  document.close()
+
+  console.log('[Taut] CSP Meta Tag removed and document reconstructed.')
 })()
 
 // Fetch the PATHS from main process

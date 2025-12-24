@@ -1,6 +1,8 @@
 // Taut Renderer Entrypoint
 // Bundled and injected into the renderer process by the main process
 
-import { initialize } from './client'
-
-initialize()
+window.addEventListener('load', async () => {
+  const { initialize } = await import('./client')
+  console.log('[Taut] Initializing renderer process...')
+  initialize()
+})

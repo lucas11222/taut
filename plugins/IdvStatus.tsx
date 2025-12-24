@@ -16,7 +16,8 @@ const pendingFetches = new Map<string, Promise<IdvStatusType>>()
 
 export default class IdvStatus extends TautPlugin {
   static readonly pluginName = 'IDV Status'
-  static readonly description = 'Shows a red squiggle on users who are not IDV eligible'
+  static readonly description =
+    'Shows a red squiggle on users who are not IDV eligible'
   static readonly authors = '<@U08PUHSMW4V>'
 
   private unpatchBaseMessageSender = () => {}
