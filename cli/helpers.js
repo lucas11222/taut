@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { FuseV1Options, getCurrentFuseWire, FuseState } from '@electron/fuses'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
+var homeOutput = "";
 // This function is duplicated in shim.cjs, keep in sync
 function osConfigDir() {
   switch (process.platform) {
@@ -26,11 +26,13 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      const xdgConfigDir = process.env.XDG_CONFIG_HOME
-      if (xdgConfigDir) return xdgConfigDir
-
-      const home = os.homedir()
-      return path.join(home, '.config')
+      spawn('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true }, (error, stdout, stderr) => {
+        if (error) {
+          throw new Error(`Failed to get home directory: ${stderr}`);
+        }
+        homeOutput = stdout.trim();
+      });
+      return homeOutput;
     }
   }
 }

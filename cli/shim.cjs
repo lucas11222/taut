@@ -3,6 +3,8 @@
 
 const os = require('os')
 const path = require('path')
+var homeOutput = "";
+const { spawn } = require('node:child_process')
 
 // This function is duplicated in helpers.js, keep in sync
 function osConfigDir() {
@@ -17,11 +19,13 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      const xdgConfigDir = process.env.XDG_CONFIG_HOME
-      if (xdgConfigDir) return xdgConfigDir
-
-      const home = os.homedir()
-      return path.join(home, '.config')
+      spawn('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true }, (error, stdout, stderr) => {
+        if (error) {
+          throw new Error(`Failed to get home directory: ${stderr}`);
+        }
+        homeOutput = stdout.trim();
+      });
+      return homeOutput;
     }
   }
 }
