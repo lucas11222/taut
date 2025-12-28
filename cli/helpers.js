@@ -5,14 +5,13 @@ import fs from 'node:fs/promises'
 import { existsSync, constants, readdirSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { execFileSync, spawnSync, spawn } from 'node:child_process'
+import { execFileSync, spawnSync, spawn, execSync } from 'node:child_process'
 import readline from 'node:readline'
 import { extractFile } from '@electron/asar'
 import { fileURLToPath } from 'node:url'
 import { FuseV1Options, getCurrentFuseWire, FuseState } from '@electron/fuses'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-var homeOutput = "";
 // This function is duplicated in shim.cjs, keep in sync
 function osConfigDir() {
   switch (process.platform) {
@@ -26,13 +25,8 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      spawn('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true }, (error, stdout, stderr) => {
-        if (error) {
-          throw new Error(`Failed to get home directory: ${stderr}`);
-        }
-        homeOutput = stdout.trim();
-      });
-      return homeOutput;
+      const homeOutput = execSync('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true, encoding: "utf8" }).trim();
+      return homeOutput + "/.config";
     }
   }
 }

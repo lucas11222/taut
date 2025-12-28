@@ -3,8 +3,7 @@
 
 const os = require('os')
 const path = require('path')
-var homeOutput = "";
-const { spawn } = require('node:child_process')
+const { execSync } = require('node:child_process')
 
 // This function is duplicated in helpers.js, keep in sync
 function osConfigDir() {
@@ -19,13 +18,8 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      spawn('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true }, (error, stdout, stderr) => {
-        if (error) {
-          throw new Error(`Failed to get home directory: ${stderr}`);
-        }
-        homeOutput = stdout.trim();
-      });
-      return homeOutput;
+      const homeOutput = execSync('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true, encoding: "utf8" }).trim();
+      return homeOutput + "/.config";
     }
   }
 }
