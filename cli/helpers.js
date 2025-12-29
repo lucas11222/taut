@@ -325,6 +325,8 @@ export async function launchSlack(resourcesDir) {
   if (process.platform === 'darwin') {
     const appPath = path.resolve(resourcesDir, '..', '..')
     spawnSync('open', [appPath])
+  } else if (process.platform === 'linux') {
+    console.log("Sadly slack dosen't like to run on root so you'll need to run it manually. :(")
   } else {
     const binary = getElectronBinary(resourcesDir)
     spawn(binary, [], { detached: true, stdio: 'ignore' }).unref()
