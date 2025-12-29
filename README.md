@@ -12,6 +12,7 @@ Setup:
   code editor
   - Windows: `%APPDATA%\taut`
   - macOS: `~/Library/Application Support/taut`
+  - Linux: `~/.config/taut`
 - Edit files in the config directory, and Slack will hot reload with your
   changes!
 - Update Taut by running `npx taut-cli` again
