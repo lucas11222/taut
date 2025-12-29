@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import { existsSync, constants, readdirSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { execFileSync, spawnSync, spawn, execSync } from 'node:child_process'
+import { execFileSync, spawnSync, spawn } from 'node:child_process'
 import readline from 'node:readline'
 import { extractFile } from '@electron/asar'
 import { fileURLToPath } from 'node:url'
@@ -25,8 +25,21 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      const homeOutput = execSync('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true, encoding: "utf8" }).trim();
-      return homeOutput + "/.config";
+      const user = process.env.SUDO_USER || process.env.USER
+      if (!user) {
+        throw new Error('Could not determine user to find config directory')
+      }
+
+      const { stdout } = spawnSync('getent', ['passwd', user], {
+        encoding: 'utf8',
+      })
+      const home = stdout ? stdout.trim().split(':')[5] : null
+
+      if (!home) {
+        throw new Error(`Could not determine home directory for user ${user}`)
+      }
+
+      return path.join(home, '.config')
     }
   }
 }

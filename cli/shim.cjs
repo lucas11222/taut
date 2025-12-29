@@ -3,7 +3,7 @@
 
 const os = require('os')
 const path = require('path')
-const { execSync } = require('node:child_process')
+const { spawnSync } = require('node:child_process')
 
 // This function is duplicated in helpers.js, keep in sync
 function osConfigDir() {
@@ -18,16 +18,35 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      const homeOutput = execSync('getent passwd ${SUDO_USER:-$USER} | cut -d: -f6', { shell: true, encoding: "utf8" }).trim();
-      return homeOutput + "/.config";
+      const user = process.env.SUDO_USER || process.env.USER
+      if (!user) {
+        throw new Error('Could not determine user to find config directory')
+      }
+
+      const { stdout } = spawnSync('getent', ['passwd', user], {
+        encoding: 'utf8',
+      })
+      const home = stdout ? stdout.trim().split(':')[5] : null
+
+      if (!home) {
+        throw new Error(`Could not determine home directory for user ${user}`)
+      }
+
+      return path.join(home, '.config')
     }
   }
 }
-const configDir = path.join(osConfigDir(), 'taut')
 
-// Load the Taut main process script
-const mainJs = path.join(configDir, 'core', 'main', 'main.cjs')
-require(mainJs)
+try {
+  const configDir = path.join(osConfigDir(), 'taut')
+
+  // Load the Taut main process script
+  const mainJs = path.join(configDir, 'core', 'main', 'main.cjs')
+  require(mainJs)
+} catch (e) {
+  console.error('[Taut] Failed to load Taut main process script:', e)
+  // Don't throw, better to give people a non-patched Slack than a broken one
+}
 
 // Load the original Slack app
 // @ts-ignore
