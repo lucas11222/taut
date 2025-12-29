@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url'
 import { FuseV1Options, getCurrentFuseWire, FuseState } from '@electron/fuses'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 // This function is duplicated in shim.cjs, keep in sync
 function osConfigDir() {
   switch (process.platform) {
@@ -26,10 +25,20 @@ function osConfigDir() {
 
     case 'linux':
     default: {
-      const xdgConfigDir = process.env.XDG_CONFIG_HOME
-      if (xdgConfigDir) return xdgConfigDir
+      const user = process.env.SUDO_USER || process.env.USER
+      if (!user) {
+        throw new Error('Could not determine user to find config directory')
+      }
 
-      const home = os.homedir()
+      const { stdout } = spawnSync('getent', ['passwd', user], {
+        encoding: 'utf8',
+      })
+      const home = stdout ? stdout.trim().split(':')[5] : null
+
+      if (!home) {
+        throw new Error(`Could not determine home directory for user ${user}`)
+      }
+
       return path.join(home, '.config')
     }
   }
