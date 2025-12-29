@@ -59,8 +59,7 @@ Things to do:
 <details><summary>Linux notes</summary>
 
 - The config directory is at `~/.config/taut`
-- In theory, Taut can support Linux, but nobody has tested and made it work. PRs
-  welcome!
+- You'll need to run it in sudo, per example `sudo npx taut-cli`.
 
 </details>
 
