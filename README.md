@@ -60,6 +60,7 @@ Things to do:
 
 - The config directory is at `~/.config/taut`
 - You'll need to run it in sudo, per example `sudo npx taut-cli`.
+- Also when its finished you'll need to run it manualy. (As slack dosen't like root) 
 
 </details>
 
